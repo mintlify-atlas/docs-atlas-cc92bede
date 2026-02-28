@@ -1,0 +1,168 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "Codex CLI",
+  "projectDescription": "Lightweight coding agent from OpenAI that runs locally in your terminal",
+  "theme": "aspen",
+  "primaryColor": "#10A37F",
+  "lightColor": "#1A7F64",
+  "darkColor": "#10A37F",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart",
+              "authentication"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/overview",
+              "concepts/interactive-mode",
+              "concepts/non-interactive-mode",
+              "concepts/sandboxing",
+              "concepts/approvals"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/overview",
+              "configuration/basic",
+              "configuration/advanced",
+              "configuration/custom-providers",
+              "configuration/mcp-servers",
+              "configuration/reference"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/skills",
+              "features/slash-commands",
+              "features/memory",
+              "features/apps-connectors",
+              "features/code-review"
+            ]
+          },
+          {
+            "group": "Advanced Usage",
+            "pages": [
+              "advanced/exec-mode",
+              "advanced/exec-policies",
+              "advanced/custom-instructions",
+              "advanced/tracing"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "CLI Reference",
+        "groups": [
+          {
+            "group": "Commands",
+            "pages": [
+              "cli/overview",
+              "cli/codex",
+              "cli/exec",
+              "cli/review",
+              "cli/login",
+              "cli/logout",
+              "cli/mcp",
+              "cli/app-server",
+              "cli/feedback"
+            ]
+          },
+          {
+            "group": "Options",
+            "pages": [
+              "cli/global-options",
+              "cli/feature-flags"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "App Server API",
+            "pages": [
+              "api/overview",
+              "api/initialization",
+              "api/threads",
+              "api/turns",
+              "api/items",
+              "api/models",
+              "api/skills",
+              "api/apps"
+            ]
+          },
+          {
+            "group": "TypeScript SDK",
+            "pages": [
+              "sdk/overview",
+              "sdk/installation",
+              "sdk/usage"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Development",
+        "groups": [
+          {
+            "group": "Contributing",
+            "pages": [
+              "contributing/overview",
+              "contributing/setup",
+              "contributing/building",
+              "contributing/testing",
+              "contributing/guidelines"
+            ]
+          },
+          {
+            "group": "Architecture",
+            "pages": [
+              "architecture/overview",
+              "architecture/rust-crates",
+              "architecture/tui",
+              "architecture/sandboxing"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Interactive terminal interface with real-time agent responses",
+    "Sandboxed command execution with configurable approval policies",
+    "Multi-provider support (OpenAI, Anthropic, local models)",
+    "MCP server integration for extensibility",
+    "Code review mode for automated PR analysis",
+    "Skills system for reusable workflows",
+    "App Server API for IDE integrations"
+  ],
+  "publicApiSurface": [
+    "codex",
+    "codex exec",
+    "codex review",
+    "codex login",
+    "codex logout",
+    "codex mcp",
+    "codex app-server",
+    "codex feedback",
+    "thread/start",
+    "thread/resume",
+    "turn/start",
+    "turn/interrupt",
+    "model/list",
+    "skills/list"
+  ]
+}
