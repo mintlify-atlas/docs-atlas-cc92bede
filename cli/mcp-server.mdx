@@ -1,0 +1,141 @@
+---
+title: codex mcp-server
+description: Run Codex as an MCP server for integration with MCP clients
+---
+
+The `mcp-server` command starts Codex in MCP (Model Context Protocol) server mode, allowing it to be used as a tool provider for MCP-compatible clients.
+
+## Usage
+
+```bash
+codex mcp-server
+```
+
+## Description
+
+When run as an MCP server, Codex exposes its capabilities through the Model Context Protocol over stdio. This allows other applications and AI systems to use Codex as a tool provider.
+
+The server runs on stdio by default and communicates using JSON-RPC messages conforming to the MCP specification.
+
+## MCP Tools Exposed
+
+When running as an MCP server, Codex exposes various tools that clients can invoke:
+
+- **Shell execution**: Run shell commands in a sandboxed environment
+- **File operations**: Read, write, and modify files
+- **Code analysis**: Analyze code structure and dependencies
+- **Git operations**: Interact with version control
+
+## Use Cases
+
+### Claude Desktop Integration
+
+Configure Claude Desktop to use Codex as an MCP server:
+
+```json
+{
+  "mcpServers": {
+    "codex": {
+      "command": "codex",
+      "args": ["mcp-server"]
+    }
+  }
+}
+```
+
+### Custom MCP Clients
+
+Build custom clients that leverage Codex capabilities:
+
+```typescript
+import { MCPClient } from '@modelcontextprotocol/sdk';
+
+const client = new MCPClient({
+  command: 'codex',
+  args: ['mcp-server']
+});
+
+await client.connect();
+const tools = await client.listTools();
+```
+
+### CI/CD Integration
+
+Use Codex as an MCP server in automated workflows:
+
+```yaml
+- name: Run Codex MCP Server
+  run: |
+    codex mcp-server &
+    SERVER_PID=$!
+    # Your MCP client operations
+    kill $SERVER_PID
+```
+
+## Configuration
+
+The MCP server respects your `~/.codex/config.toml` settings, including:
+
+- Authentication credentials
+- Sandbox policies
+- Model preferences
+- Approval modes
+
+## Authentication
+
+The MCP server uses the same authentication as regular Codex:
+
+1. ChatGPT OAuth credentials (if logged in with `codex login`)
+2. API key from environment variables or config
+3. Device code flow
+
+Make sure you're authenticated before starting the server:
+
+```bash
+codex login
+codex mcp-server
+```
+
+## Security Considerations
+
+<Warning>
+  The MCP server can execute code and modify files based on client requests. Ensure you trust the MCP client connecting to the server.
+</Warning>
+
+<Note>
+  Sandbox policies still apply when running as an MCP server. Configure appropriate sandbox modes in your config file.
+</Note>
+
+## Debugging
+
+Enable verbose logging to debug MCP communication:
+
+```bash
+RUST_LOG=info codex mcp-server
+```
+
+For detailed protocol debugging:
+
+```bash
+RUST_LOG=debug codex mcp-server 2> mcp-server.log
+```
+
+## Protocol Compliance
+
+Codex's MCP server implementation follows the [Model Context Protocol specification](https://modelcontextprotocol.io/). It supports:
+
+- Tool discovery and invocation
+- Resource access
+- Prompt management
+- Sampling requests (when applicable)
+
+## Related Commands
+
+<CardGroup cols={2}>
+  <Card title="codex mcp" href="/cli/mcp">
+    Manage external MCP servers
+  </Card>
+  <Card title="MCP Configuration" href="/configuration/mcp-servers">
+    Configure MCP servers
+  </Card>
+</CardGroup>

@@ -1,0 +1,134 @@
+---
+title: codex completion
+description: Generate shell completion scripts for Codex CLI
+---
+
+The `completion` command generates shell completion scripts that enable tab-completion for Codex commands, subcommands, and flags.
+
+## Usage
+
+```bash
+codex completion [SHELL]
+```
+
+## Supported Shells
+
+- `bash` (default)
+- `zsh`
+- `fish`
+- `powershell`
+- `elvish`
+
+## Installation
+
+### Bash
+
+Add to your `~/.bashrc`:
+
+```bash
+eval "$(codex completion bash)"
+```
+
+Or generate to a file:
+
+```bash
+codex completion bash > ~/.local/share/bash-completion/completions/codex
+```
+
+### Zsh
+
+Add to your `~/.zshrc`:
+
+```bash
+eval "$(codex completion zsh)"
+```
+
+Or generate to a file:
+
+```bash
+codex completion zsh > ~/.zsh/completions/_codex
+```
+
+Make sure `~/.zsh/completions` is in your `$fpath`:
+
+```bash
+fpath=(~/.zsh/completions $fpath)
+```
+
+### Fish
+
+Generate to Fish's completions directory:
+
+```bash
+codex completion fish > ~/.config/fish/completions/codex.fish
+```
+
+### PowerShell
+
+Add to your PowerShell profile:
+
+```powershell
+codex completion powershell | Out-String | Invoke-Expression
+```
+
+## Examples
+
+### Generate Bash Completions
+
+```bash
+codex completion bash
+```
+
+### Generate for Specific Shell
+
+```bash
+codex completion zsh
+codex completion fish
+```
+
+### Save to File
+
+```bash
+codex completion bash > /usr/local/etc/bash_completion.d/codex
+```
+
+## What Gets Completed
+
+Shell completion works for:
+- Commands: `codex <TAB>` shows all available commands
+- Subcommands: `codex mcp <TAB>` shows MCP subcommands
+- Flags: `codex --<TAB>` shows all global flags
+- Options: `codex -m <TAB>` suggests model names
+
+## Troubleshooting
+
+### Completions Not Working
+
+1. Make sure you've reloaded your shell:
+   ```bash
+   exec $SHELL
+   ```
+
+2. Verify the completion file is in the right location:
+   ```bash
+   # Bash
+   echo $BASH_COMPLETION_USER_DIR
+   
+   # Zsh
+   echo $fpath
+   ```
+
+3. Check that the completion function is loaded:
+   ```bash
+   # Bash
+   complete -p codex
+   
+   # Zsh
+   which _codex
+   ```
+
+## Related Commands
+
+<Card title="codex" href="/cli/codex">
+  Main Codex CLI command
+</Card>

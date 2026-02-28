@@ -1,0 +1,83 @@
+---
+title: codex fork
+description: Fork a previous interactive session to explore alternative approaches
+---
+
+The `fork` command creates a new session based on an existing one, allowing you to explore different approaches while preserving the original conversation.
+
+## Usage
+
+```bash
+codex fork              # Shows picker to select session to fork
+codex fork --last       # Fork most recent session
+```
+
+## Description
+
+Forking creates a copy of a previous session's history and starts a new interactive session from that point. This is useful when you want to:
+
+- Try a different approach to solving a problem
+- Explore alternative implementations
+- Experiment without affecting the original session
+- Branch off from a specific point in a conversation
+
+The fork creates a new thread ID with the copied history, leaving the original session unchanged.
+
+## Options
+
+<ParamField path="--last" type="boolean">
+  Fork the most recent session without showing the picker.
+</ParamField>
+
+## Examples
+
+### Interactive Picker
+
+Show a picker to select which session to fork:
+
+```bash
+codex fork
+```
+
+### Fork Latest
+
+Automatically fork your most recent session:
+
+```bash
+codex fork --last
+```
+
+## How It Works
+
+1. Codex loads the selected session's history
+2. Creates a new thread ID
+3. Copies all conversation history to the new thread
+4. Opens the interactive TUI with the forked session
+5. You can now continue in a different direction
+
+## Use Cases
+
+- **A/B testing approaches**: Try two different solutions to the same problem
+- **Experimentation**: Test ideas without losing your original work
+- **Decision points**: Fork when you reach a critical architectural choice
+- **Learning**: Explore "what if" scenarios with the same context
+
+## Comparison: Fork vs Resume
+
+| Feature | Fork | Resume |
+|---------|------|--------|
+| Original session | Unchanged | Continued |
+| New thread ID | Yes | No |
+| History | Copied | Shared |
+| Use case | Try alternatives | Continue work |
+
+## Related Commands
+
+<CardGroup cols={2}>
+  <Card title="codex resume" href="/cli/resume">
+    Resume an existing session
+  </Card>
+  <Card title="codex" href="/cli/codex">
+    Start a new interactive session
+  </Card>
+</CardGroup>

@@ -1,0 +1,137 @@
+---
+title: codex sandbox
+description: Run commands within the Codex-provided sandbox environment
+---
+
+The `sandbox` command allows you to manually execute commands within the same sandbox environment that Codex uses for command execution.
+
+## Usage
+
+```bash
+codex sandbox [OPTIONS] -- <COMMAND>
+```
+
+## Description
+
+This command is primarily used for testing and debugging sandbox behavior. It runs the specified command with the same security restrictions that Codex applies when executing commands on your behalf.
+
+The sandbox environment varies by platform:
+- **Linux**: Landlock LSM + seccomp filters (or Bubblewrap if enabled)
+- **macOS**: Seatbelt sandbox profiles
+- **Windows**: Restricted token with limited privileges
+
+## Options
+
+<ParamField path="--sandbox" type="string">
+  Sandbox mode to use. Options: `read-only`, `workspace-write`, `danger-full-access`
+  
+  Default: `read-only`
+</ParamField>
+
+<ParamField path="--cwd" type="string">
+  Working directory for the command.
+  
+  Default: current directory
+</ParamField>
+
+## Examples
+
+### Run Command in Read-Only Sandbox
+
+```bash
+codex sandbox -- ls -la
+```
+
+### Test Workspace Write Access
+
+```bash
+codex sandbox --sandbox workspace-write -- touch test.txt
+```
+
+### Run in Specific Directory
+
+```bash
+codex sandbox --cwd /tmp -- pwd
+```
+
+### Test Network Restrictions
+
+```bash
+# This should fail in read-only mode
+codex sandbox -- curl https://example.com
+```
+
+## Sandbox Modes
+
+### read-only
+
+- Read access to workspace files
+- No write access
+- No network access
+- Cannot modify system files
+
+### workspace-write
+
+- Read access to workspace files
+- Write access within workspace directory
+- No network access
+- Cannot modify system files outside workspace
+
+### danger-full-access
+
+- Full file system access
+- Network access allowed
+- Can modify any accessible files
+- Use with caution
+
+## Use Cases
+
+### Testing Sandbox Policies
+
+Verify that your sandbox configuration works as expected:
+
+```bash
+codex sandbox --sandbox read-only -- cat ~/.codex/config.toml
+```
+
+### Debugging Command Failures
+
+When a command fails in Codex, test it manually:
+
+```bash
+codex sandbox -- npm install
+```
+
+### Validating Execpolicy Rules
+
+Test whether a command would be allowed:
+
+```bash
+codex execpolicy check "git push origin main"
+codex sandbox -- git push origin main
+```
+
+## Exit Codes
+
+The command returns the exit code of the executed command.
+
+## Security Notes
+
+<Warning>
+  The `danger-full-access` sandbox mode disables most security restrictions. Only use it when you fully trust the command being executed.
+</Warning>
+
+<Note>
+  Sandbox behavior may vary between platforms. Always test critical workflows on your target platform.
+</Note>
+
+## Related Commands
+
+<CardGroup cols={2}>
+  <Card title="Sandboxing Concepts" href="/concepts/sandboxing">
+    Learn about Codex sandboxing
+  </Card>
+  <Card title="Exec Policies" href="/advanced/exec-policies">
+    Configure execution policies
+  </Card>
+</CardGroup>

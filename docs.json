@@ -85,10 +85,18 @@
               "cli/codex",
               "cli/exec",
               "cli/review",
+              "cli/apply",
+              "cli/resume",
+              "cli/fork",
               "cli/login",
               "cli/logout",
               "cli/mcp",
+              "cli/mcp-server",
               "cli/app-server",
+              "cli/completion",
+              "cli/sandbox",
+              "cli/features",
+              "cli/debug",
               "cli/feedback"
             ]
           },

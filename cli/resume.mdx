@@ -1,0 +1,78 @@
+---
+title: codex resume
+description: Resume a previous interactive Codex session
+---
+
+The `resume` command allows you to continue a previous interactive Codex session, preserving the full conversation history and context.
+
+## Usage
+
+```bash
+codex resume              # Shows picker to select session
+codex resume --last       # Resume most recent session
+```
+
+## Description
+
+Resume lets you pick up where you left off with a previous Codex session. The full conversation history, including:
+- User messages
+- Agent responses
+- Executed commands
+- File changes
+- Reasoning and plans
+
+All of this context is restored, allowing you to continue the conversation naturally.
+
+## Options
+
+<ParamField path="--last" type="boolean">
+  Resume the most recent session without showing the picker.
+</ParamField>
+
+## Examples
+
+### Interactive Picker
+
+Show a picker to select from your previous sessions:
+
+```bash
+codex resume
+```
+
+This displays a list of recent sessions with:
+- Session date and time
+- Initial prompt or topic
+- Number of turns
+
+### Resume Latest
+
+Automatically resume your most recent session:
+
+```bash
+codex resume --last
+```
+
+## How It Works
+
+1. Codex loads the session rollout file from `~/.codex/sessions/`
+2. Restores the full conversation history
+3. Reopens the interactive TUI
+4. You can continue the conversation from where you left off
+
+## Use Cases
+
+- **Long-running tasks**: Resume work on multi-step implementations
+- **Context preservation**: Keep the agent's understanding of your project
+- **Incremental development**: Build features across multiple sessions
+- **Review and iterate**: Review previous changes and make adjustments
+
+## Related Commands
+
+<CardGroup cols={2}>
+  <Card title="codex fork" href="/cli/fork">
+    Fork a session to try alternatives
+  </Card>
+  <Card title="codex" href="/cli/codex">
+    Start a new interactive session
+  </Card>
+</CardGroup>

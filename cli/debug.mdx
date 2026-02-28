@@ -1,0 +1,126 @@
+---
+title: codex debug
+description: Debugging tools for Codex app server and internal components
+---
+
+The `debug` command provides debugging utilities for troubleshooting Codex internals, primarily focused on app server communication.
+
+## Usage
+
+```bash
+codex debug <SUBCOMMAND>
+```
+
+## Subcommands
+
+### app-server
+
+Debug app server communication and protocol issues:
+
+```bash
+codex debug app-server <SUBCOMMAND>
+```
+
+#### send-message-v2
+
+Send a test message to a running app server (V2 protocol):
+
+```bash
+codex debug app-server send-message-v2 [OPTIONS]
+```
+
+This is useful for testing app server integrations and debugging JSON-RPC communication.
+
+## Examples
+
+### Test App Server Connection
+
+Start an app server in one terminal:
+
+```bash
+codex app-server
+```
+
+In another terminal, send a test message:
+
+```bash
+codex debug app-server send-message-v2
+```
+
+### Debug Protocol Issues
+
+When debugging IDE integration issues, you can manually send messages to verify the app server is responding correctly.
+
+## Use Cases
+
+### IDE Integration Development
+
+When building IDE extensions that communicate with the Codex app server:
+
+1. Start the app server with debug logging
+2. Use debug commands to send test messages
+3. Verify responses match expected schema
+
+### Protocol Debugging
+
+Test JSON-RPC message handling:
+
+```bash
+# Send various message types to app server
+codex debug app-server send-message-v2 --method "thread/start"
+```
+
+### CI Testing
+
+Verify app server functionality in automated tests:
+
+```bash
+# Start server
+codex app-server &
+APP_SERVER_PID=$!
+
+# Test communication
+codex debug app-server send-message-v2
+
+# Cleanup
+kill $APP_SERVER_PID
+```
+
+## Internal Use
+
+<Note>
+  These commands are primarily intended for internal development and debugging. Regular users typically don't need these tools.
+</Note>
+
+The debug commands access internal APIs that may change between versions.
+
+## Related Commands
+
+<CardGroup cols={2}>
+  <Card title="codex app-server" href="/cli/app-server">
+    Start the app server
+  </Card>
+  <Card title="App Server API" href="/api/overview">
+    App server API documentation
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+### App Server Not Responding
+
+If the app server doesn't respond to debug commands:
+
+1. Verify the app server is running
+2. Check that stdio transport is being used
+3. Review app server logs for errors
+
+### Protocol Errors
+
+If you see JSON-RPC protocol errors:
+
+1. Ensure you're using the correct protocol version (V2)
+2. Verify message format matches the schema
+3. Check for missing required fields
+
+For more debugging help, see the [Tracing guide](/advanced/tracing).

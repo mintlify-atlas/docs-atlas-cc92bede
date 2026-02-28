@@ -19,7 +19,7 @@ codex exec "explain this codebase"
 codex exec --json "run tests"
 ```
 
-## Available Commands
+## Core Commands
 
 <CardGroup cols={3}>
   <Card title="codex" icon="terminal" href="/cli/codex">
@@ -33,7 +33,27 @@ codex exec --json "run tests"
   <Card title="review" icon="code-review" href="/cli/review">
     Run code reviews on commits or branches
   </Card>
+</CardGroup>
+
+## Session Management
+
+<CardGroup cols={3}>
+  <Card title="apply" icon="file-code" href="/cli/apply">
+    Apply latest diff from Codex to working tree
+  </Card>
   
+  <Card title="resume" icon="rotate-right" href="/cli/resume">
+    Resume a previous interactive session
+  </Card>
+  
+  <Card title="fork" icon="code-fork" href="/cli/fork">
+    Fork a previous interactive session
+  </Card>
+</CardGroup>
+
+## Authentication
+
+<CardGroup cols={2}>
   <Card title="login" icon="sign-in" href="/cli/login">
     Authenticate with ChatGPT or API key
   </Card>
@@ -41,17 +61,45 @@ codex exec --json "run tests"
   <Card title="logout" icon="sign-out" href="/cli/logout">
     Remove stored credentials
   </Card>
-  
+</CardGroup>
+
+## Integration & Tooling
+
+<CardGroup cols={3}>
   <Card title="mcp" icon="server" href="/cli/mcp">
     Manage external MCP servers
   </Card>
   
+  <Card title="mcp-server" icon="network-wired" href="/cli/mcp-server">
+    Run Codex as an MCP server (stdio)
+  </Card>
+  
   <Card title="app-server" icon="network" href="/cli/app-server">
-    Start Codex as an app server
+    Start Codex as an app server for IDEs
+  </Card>
+</CardGroup>
+
+## Utilities
+
+<CardGroup cols={3}>
+  <Card title="completion" icon="terminal" href="/cli/completion">
+    Generate shell completion scripts
+  </Card>
+  
+  <Card title="sandbox" icon="shield" href="/cli/sandbox">
+    Run commands within Codex sandbox
+  </Card>
+  
+  <Card title="features" icon="flag" href="/cli/features">
+    Inspect and manage feature flags
   </Card>
   
   <Card title="feedback" icon="message" href="/cli/feedback">
     Submit feedback about Codex
+  </Card>
+  
+  <Card title="debug" icon="bug" href="/cli/debug">
+    Debugging tools for app server
   </Card>
 </CardGroup>
 

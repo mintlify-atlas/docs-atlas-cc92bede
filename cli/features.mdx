@@ -1,0 +1,145 @@
+---
+title: codex features
+description: Inspect and manage feature flags in Codex CLI
+---
+
+The `features` command allows you to view, enable, and disable experimental and beta features in Codex.
+
+## Usage
+
+```bash
+codex features <SUBCOMMAND>
+```
+
+## Subcommands
+
+### list
+
+List all available feature flags with their current state:
+
+```bash
+codex features list
+```
+
+### enable
+
+Enable a specific feature flag:
+
+```bash
+codex features enable <FEATURE_NAME>
+```
+
+### disable
+
+Disable a specific feature flag:
+
+```bash
+codex features disable <FEATURE_NAME>
+```
+
+## Examples
+
+### View All Features
+
+```bash
+codex features list
+```
+
+Output shows:
+- Feature name
+- Current state (enabled/disabled)
+- Stage (stable, beta, experimental, under development)
+- Description
+
+### Enable Experimental Feature
+
+```bash
+codex features enable js_repl
+```
+
+### Disable Feature
+
+```bash
+codex features disable multi_agent
+```
+
+### Use Feature for Single Command
+
+Instead of permanently enabling a feature, use the `--enable` flag:
+
+```bash
+codex --enable js_repl exec "run this code in a REPL"
+```
+
+## Feature Stages
+
+Features go through different stages of development:
+
+| Stage | Description | Stability |
+|-------|-------------|-----------|
+| **stable** | Production-ready, enabled by default | High |
+| **beta** | Generally stable, ready for testing | Medium |
+| **experimental** | Early development, may change | Low |
+| **under development** | Not ready for use | Very low |
+| **deprecated** | Being phased out | N/A |
+
+## Common Features
+
+### Experimental Features
+
+- `js_repl` - JavaScript REPL environment
+- `multi_agent` - Multi-agent collaboration
+- `apps` - ChatGPT apps integration
+- `prevent_idle_sleep` - Prevent system sleep during long operations
+
+### Stable Features
+
+- `shell_tool` - Enhanced shell command execution
+- `unified_exec` - Unified execution engine
+- `shell_snapshot` - Shell command snapshots
+- `sqlite` - SQLite-backed state storage
+- `personality` - Agent personality customization
+
+## Configuration
+
+Feature flags can also be set in `~/.codex/config.toml`:
+
+```toml
+[features]
+js_repl = true
+multi_agent = false
+```
+
+## Priority Order
+
+Feature flags are resolved in this order (highest to lowest):
+
+1. Command-line flags (`--enable`, `--disable`)
+2. Environment variables (`CODEX_ENABLE_<FEATURE>`)
+3. Config file (`~/.codex/config.toml`)
+4. Default value
+
+## Warnings
+
+<Warning>
+  Experimental features may:
+  - Change behavior without notice
+  - Be removed in future versions
+  - Cause unexpected errors
+  - Affect performance
+</Warning>
+
+<Note>
+  Beta features are more stable but may still undergo breaking changes before becoming stable.
+</Note>
+
+## Related Commands
+
+<CardGroup cols={2}>
+  <Card title="Feature Flags Reference" href="/cli/feature-flags">
+    Complete list of all feature flags
+  </Card>
+  <Card title="Configuration" href="/configuration/basic">
+    Configure Codex settings
+  </Card>
+</CardGroup>
