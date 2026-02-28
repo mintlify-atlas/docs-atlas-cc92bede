@@ -1,0 +1,454 @@
+---
+title: Custom AI Providers
+description: Configure Codex to use alternative AI providers like Anthropic, Ollama, or custom endpoints
+---
+
+Codex supports any AI provider that implements an OpenAI-compatible API. This guide shows you how to configure custom providers.
+
+## Built-in Provider Support
+
+Codex includes built-in support for these providers:
+
+- **OpenAI** (default) - OpenAI's models including GPT-4, GPT-5, o-series
+- **Azure OpenAI** - Enterprise Azure deployment
+- **Anthropic** - Claude models via OpenAI-compatible endpoint
+- **OpenRouter** - Access to multiple model providers
+- **Ollama** - Local model inference
+- **LM Studio** - Local model hosting
+- **Together AI** - Fast inference for open models
+- **Mistral AI** - Mistral and Mixtral models
+- **DeepSeek** - DeepSeek models
+- **Groq** - Ultra-fast LLM inference
+- **xAI** - Grok models
+- **Gemini** - Google's Gemini models
+
+## Configuring a Custom Provider
+
+Define custom providers in the `[model_providers]` section:
+
+```toml
+model_provider = "anthropic"
+
+[model_providers.anthropic]
+name = "Anthropic"
+base_url = "https://api.anthropic.com/v1"
+env_key = "ANTHROPIC_API_KEY"
+```
+
+Then set your API key:
+
+```bash
+export ANTHROPIC_API_KEY="sk-ant-..."
+```
+
+## Provider Configuration Options
+
+<ParamField path="name" type="string" required>
+  Friendly display name for the provider
+</ParamField>
+
+<ParamField path="base_url" type="string">
+  Base URL for the provider's OpenAI-compatible API
+</ParamField>
+
+<ParamField path="env_key" type="string">
+  Environment variable name that stores the API key
+</ParamField>
+
+<ParamField path="env_key_instructions" type="string">
+  Help text for obtaining and setting the API key
+</ParamField>
+
+<ParamField path="http_headers" type="object">
+  Static HTTP headers to include in requests (key-value pairs)
+</ParamField>
+
+<ParamField path="env_http_headers" type="object">
+  HTTP headers with values from environment variables (header name → env var name)
+</ParamField>
+
+<ParamField path="query_params" type="object">
+  Query parameters to append to API requests
+</ParamField>
+
+<ParamField path="requires_openai_auth" type="boolean" default="false">
+  Whether this provider requires OpenAI authentication (for proxies/gateways)
+</ParamField>
+
+<ParamField path="wire_api" type="string" default="responses">
+  Which wire protocol the provider expects (currently only `"responses"` is supported)
+</ParamField>
+
+<ParamField path="supports_websockets" type="boolean" default="false">
+  Whether the provider supports Responses API WebSocket transport
+</ParamField>
+
+## Common Provider Examples
+
+### Ollama (Local Models)
+
+Run models locally with Ollama:
+
+```toml
+model_provider = "ollama"
+model = "codestral"
+
+[model_providers.ollama]
+name = "Ollama"
+base_url = "http://localhost:11434/v1"
+env_key = "OLLAMA_API_KEY"  # Can be empty for local
+```
+
+<Steps>
+  <Step title="Install Ollama">
+    Download from [ollama.ai](https://ollama.ai)
+  </Step>
+  <Step title="Pull a model">
+    ```bash
+    ollama pull codestral
+    ```
+  </Step>
+  <Step title="Run Codex">
+    ```bash
+    codex --model codestral
+    ```
+  </Step>
+</Steps>
+
+### Azure OpenAI
+
+Use Azure's OpenAI deployment:
+
+```toml
+model_provider = "azure"
+model = "gpt-4"
+
+[model_providers.azure]
+name = "Azure OpenAI"
+base_url = "https://YOUR_RESOURCE.openai.azure.com/openai"
+env_key = "AZURE_OPENAI_API_KEY"
+
+[model_providers.azure.query_params]
+"api-version" = "2024-02-15-preview"
+```
+
+Set your credentials:
+
+```bash
+export AZURE_OPENAI_API_KEY="your-key-here"
+export AZURE_OPENAI_API_VERSION="2024-02-15-preview"  # Optional
+```
+
+### OpenRouter
+
+Access multiple providers through OpenRouter:
+
+```toml
+model_provider = "openrouter"
+model = "anthropic/claude-3.5-sonnet"
+
+[model_providers.openrouter]
+name = "OpenRouter"
+base_url = "https://openrouter.ai/api/v1"
+env_key = "OPENROUTER_API_KEY"
+```
+
+```bash
+export OPENROUTER_API_KEY="sk-or-..."
+```
+
+### Anthropic (Claude)
+
+Use Claude models via Anthropic's API:
+
+```toml
+model_provider = "anthropic"
+model = "claude-3-5-sonnet-20241022"
+
+[model_providers.anthropic]
+name = "Anthropic"
+base_url = "https://api.anthropic.com/v1"
+env_key = "ANTHROPIC_API_KEY"
+```
+
+```bash
+export ANTHROPIC_API_KEY="sk-ant-..."
+```
+
+<Note>
+  Anthropic's API may require adapter middleware for full OpenAI compatibility. Consider using OpenRouter for easier Claude access.
+</Note>
+
+### Together AI
+
+Use open models via Together AI:
+
+```toml
+model_provider = "together"
+model = "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo"
+
+[model_providers.together]
+name = "Together AI"
+base_url = "https://api.together.xyz/v1"
+env_key = "TOGETHER_API_KEY"
+```
+
+### DeepSeek
+
+Use DeepSeek models:
+
+```toml
+model_provider = "deepseek"
+model = "deepseek-chat"
+
+[model_providers.deepseek]
+name = "DeepSeek"
+base_url = "https://api.deepseek.com"
+env_key = "DEEPSEEK_API_KEY"
+```
+
+### Groq
+
+Fast inference with Groq:
+
+```toml
+model_provider = "groq"
+model = "llama-3.1-70b-versatile"
+
+[model_providers.groq]
+name = "Groq"
+base_url = "https://api.groq.com/openai/v1"
+env_key = "GROQ_API_KEY"
+```
+
+### Mistral AI
+
+Use Mistral models:
+
+```toml
+model_provider = "mistral"
+model = "mistral-large-latest"
+
+[model_providers.mistral]
+name = "Mistral AI"
+base_url = "https://api.mistral.ai/v1"
+env_key = "MISTRAL_API_KEY"
+```
+
+## Advanced Provider Configuration
+
+### Custom HTTP Headers
+
+Include static headers in requests:
+
+```toml
+[model_providers.custom]
+name = "Custom Provider"
+base_url = "https://api.custom.com/v1"
+env_key = "CUSTOM_API_KEY"
+
+[model_providers.custom.http_headers]
+"X-Custom-Header" = "value"
+"X-Organization-ID" = "org-123"
+```
+
+### Dynamic Headers from Environment
+
+Load header values from environment variables:
+
+```toml
+[model_providers.custom]
+name = "Custom Provider"
+base_url = "https://api.custom.com/v1"
+env_key = "CUSTOM_API_KEY"
+
+[model_providers.custom.env_http_headers]
+"X-Organization-ID" = "ORG_ID_ENV_VAR"
+"X-User-ID" = "USER_ID_ENV_VAR"
+```
+
+Then set:
+
+```bash
+export ORG_ID_ENV_VAR="org-123"
+export USER_ID_ENV_VAR="user-456"
+```
+
+### Retry and Timeout Configuration
+
+```toml
+[model_providers.custom]
+name = "Custom Provider"
+base_url = "https://api.custom.com/v1"
+env_key = "CUSTOM_API_KEY"
+request_max_retries = 5
+stream_idle_timeout_ms = 30000
+stream_max_retries = 3
+```
+
+<ParamField path="request_max_retries" type="integer" default="3">
+  Maximum HTTP request retries on failure
+</ParamField>
+
+<ParamField path="stream_idle_timeout_ms" type="integer" default="30000">
+  Idle timeout in milliseconds before treating streaming connection as lost
+</ParamField>
+
+<ParamField path="stream_max_retries" type="integer" default="3">
+  Maximum reconnection attempts for dropped streams
+</ParamField>
+
+## Switching Providers
+
+You can switch providers in several ways:
+
+### In Configuration
+
+```toml
+model_provider = "ollama"
+model = "codestral"
+```
+
+### Via CLI Flag
+
+```bash
+codex --provider ollama --model codestral
+```
+
+### Via Environment Variable
+
+```bash
+export CODEX_PROVIDER=ollama
+export CODEX_MODEL=codestral
+codex
+```
+
+### Using Profiles
+
+```toml
+profile = "local"
+
+[profiles.local]
+model_provider = "ollama"
+model = "codestral"
+
+[profiles.cloud]
+model_provider = "openai"
+model = "gpt-4.1"
+```
+
+Switch with:
+
+```bash
+codex --profile local
+codex --profile cloud
+```
+
+## Testing Provider Configuration
+
+Test your provider setup:
+
+```bash
+# Test connection and basic functionality
+codex "What is 2+2?"
+
+# Verbose mode to debug connection issues
+DEBUG=true codex "test"
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Connection refused or timeout">
+    - Verify the base URL is correct
+    - Check if the service is running (for local providers)
+    - Test with curl: `curl $BASE_URL/models`
+    - Check firewall/network settings
+  </Accordion>
+  
+  <Accordion title="Authentication errors">
+    - Verify the API key environment variable is set
+    - Check the environment variable name matches `env_key`
+    - Ensure the API key has required permissions
+    - Try authenticating with the provider's native CLI
+  </Accordion>
+  
+  <Accordion title="API compatibility issues">
+    - Verify the provider implements OpenAI-compatible endpoints
+    - Check if the model name is valid for the provider
+    - Review provider documentation for any non-standard behaviors
+    - Some providers may need middleware for full compatibility
+  </Accordion>
+  
+  <Accordion title="Model not found">
+    - Verify the model name exists on the provider
+    - Check capitalization and exact spelling
+    - For local providers (Ollama), ensure model is pulled
+    - Try listing available models via provider API
+  </Accordion>
+</AccordionGroup>
+
+## Provider Compatibility Notes
+
+While Codex supports any OpenAI-compatible API, some features may have varying support:
+
+- **Streaming** - Most providers support streaming responses
+- **Function calling** - Required for Codex tool use; verify provider support
+- **Vision** - Image input requires multimodal model support
+- **Reasoning effort** - Only supported by reasoning-capable models (o-series)
+- **WebSocket transport** - Optional; falls back to HTTP streaming
+
+## Complete Example
+
+Here's a full configuration with multiple providers:
+
+```toml
+# Default provider
+model_provider = "openai"
+model = "gpt-4.1"
+
+# Define multiple providers
+[model_providers.openai]
+name = "OpenAI"
+base_url = "https://api.openai.com/v1"
+env_key = "OPENAI_API_KEY"
+
+[model_providers.ollama]
+name = "Ollama"
+base_url = "http://localhost:11434/v1"
+env_key = "OLLAMA_API_KEY"
+
+[model_providers.azure]
+name = "Azure OpenAI"
+base_url = "https://myorg.openai.azure.com/openai"
+env_key = "AZURE_OPENAI_API_KEY"
+
+[model_providers.groq]
+name = "Groq"
+base_url = "https://api.groq.com/openai/v1"
+env_key = "GROQ_API_KEY"
+
+# Use profiles to switch easily
+[profiles.local]
+model_provider = "ollama"
+model = "codestral"
+
+[profiles.fast]
+model_provider = "groq"
+model = "llama-3.1-70b-versatile"
+
+[profiles.enterprise]
+model_provider = "azure"
+model = "gpt-4"
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="MCP Servers" icon="server" href="/configuration/mcp-servers">
+    Integrate Model Context Protocol servers
+  </Card>
+  <Card title="Configuration Reference" icon="book" href="/configuration/reference">
+    Complete reference documentation
+  </Card>
+</CardGroup>

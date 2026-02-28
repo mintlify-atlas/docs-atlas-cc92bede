@@ -1,0 +1,126 @@
+---
+title: "Overview"
+description: "Embed the Codex agent in your workflows and applications with the TypeScript SDK"
+---
+
+## What is the Codex SDK?
+
+The Codex TypeScript SDK allows you to programmatically embed the Codex agent into your workflows and applications. It wraps the `codex` CLI from `@openai/codex`, spawning the CLI process and exchanging JSONL events over stdin/stdout.
+
+With the SDK, you can:
+
+- Start and manage conversation threads with the Codex agent
+- Execute autonomous coding tasks programmatically
+- Stream real-time events as the agent works (tool calls, file changes, responses)
+- Get structured JSON output conforming to your schemas
+- Resume previous conversations from persisted sessions
+- Control sandbox modes, working directories, and approval policies
+
+## When to Use the SDK
+
+The TypeScript SDK is ideal for:
+
+<CardGroup cols={2}>
+  <Card title="Automation Workflows" icon="robot">
+    Integrate Codex into CI/CD pipelines, automated testing, or deployment workflows
+  </Card>
+  <Card title="Custom Applications" icon="code">
+    Build custom development tools and IDEs with embedded AI assistance
+  </Card>
+  <Card title="Batch Processing" icon="layer-group">
+    Process multiple repositories or tasks in parallel with programmatic control
+  </Card>
+  <Card title="Structured Output" icon="json">
+    Extract structured data or generate reports that conform to specific schemas
+  </Card>
+</CardGroup>
+
+## Key Concepts
+
+### Codex Client
+
+The `Codex` class is the main entry point. It manages the underlying CLI process and configuration:
+
+```typescript
+import { Codex } from "@openai/codex-sdk";
+
+const codex = new Codex({
+  baseUrl: "https://api.openai.com/v1",
+  apiKey: process.env.OPENAI_API_KEY,
+});
+```
+
+### Threads
+
+A `Thread` represents a conversation with the agent. Threads persist across multiple turns and are saved in `~/.codex/sessions`:
+
+```typescript
+const thread = codex.startThread();
+```
+
+### Turns
+
+A turn is a single interaction where you provide input and the agent responds. Each turn can involve multiple tool calls, file changes, and reasoning steps:
+
+```typescript
+const turn = await thread.run("Fix the failing tests");
+console.log(turn.finalResponse);
+```
+
+### Events
+
+The SDK emits structured events as the agent works. Use `runStreamed()` to access these events in real-time:
+
+```typescript
+const { events } = await thread.runStreamed("Analyze this codebase");
+
+for await (const event of events) {
+  switch (event.type) {
+    case "item.completed":
+      console.log("Completed:", event.item);
+      break;
+    case "turn.completed":
+      console.log("Usage:", event.usage);
+      break;
+  }
+}
+```
+
+## Core Capabilities
+
+<AccordionGroup>
+  <Accordion title="Buffered Execution" icon="clock">
+    Use `run()` to execute a turn and wait for the complete result with all items buffered.
+  </Accordion>
+  
+  <Accordion title="Streaming Events" icon="stream">
+    Use `runStreamed()` to receive real-time events including tool calls, file changes, and progress updates.
+  </Accordion>
+  
+  <Accordion title="Structured Output" icon="brackets-curly">
+    Provide a JSON schema to get agent responses in structured format instead of natural language.
+  </Accordion>
+  
+  <Accordion title="Image Inputs" icon="image">
+    Attach local images alongside text prompts for visual analysis and debugging.
+  </Accordion>
+  
+  <Accordion title="Session Resumption" icon="rotate">
+    Resume conversations from previous sessions using thread IDs.
+  </Accordion>
+  
+  <Accordion title="Sandbox Control" icon="shield">
+    Configure sandbox modes from read-only to full file system access.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/sdk/installation">
+    Install the SDK and set up your environment
+  </Card>
+  <Card title="Usage Guide" icon="book" href="/sdk/usage">
+    Learn how to use the SDK with detailed examples
+  </Card>
+</CardGroup>

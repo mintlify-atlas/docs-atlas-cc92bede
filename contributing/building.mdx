@@ -1,0 +1,267 @@
+---
+title: Building Codex
+description: Learn how to build Codex CLI from source for Rust and TypeScript implementations
+---
+
+This guide covers building Codex CLI from source, including both the Rust and legacy TypeScript implementations.
+
+## Building the Rust Implementation
+
+The Rust implementation is the maintained version of Codex CLI and lives in `codex-rs/`.
+
+### Quick Start
+
+<Steps>
+  <Step title="Navigate to Workspace">
+    ```bash
+    cd codex/codex-rs
+    ```
+  </Step>
+
+  <Step title="Build with Cargo">
+    ```bash
+    cargo build
+    ```
+    
+    <Tip>
+      For optimized builds, use `cargo build --release`
+    </Tip>
+  </Step>
+
+  <Step title="Run the TUI">
+    Launch the TUI with a sample prompt:
+    
+    ```bash
+    cargo run --bin codex -- "explain this codebase to me"
+    ```
+  </Step>
+</Steps>
+
+### Build-Related Commands
+
+After making changes, use these workspace helpers:
+
+<CodeGroup>
+  ```bash Format code
+  just fmt
+  ```
+
+  ```bash Fix linter issues
+  # Scope to specific crate you touched
+  just fix -p codex-tui
+  
+  # Or run for all crates (slower)
+  just fix
+  ```
+
+  ```bash Update config schema
+  # Run after changing ConfigToml or nested config types
+  just write-config-schema
+  ```
+
+  ```bash Update Bazel lockfile
+  # Run after changing Rust dependencies
+  just bazel-lock-update
+  just bazel-lock-check
+  ```
+</CodeGroup>
+
+<Warning>
+  **Important:** Run `just fmt` automatically after making Rust code changes. Do not re-run tests after running `fix` or `fmt`.
+</Warning>
+
+### Workspace Organization
+
+The `codex-rs/` directory is a Cargo workspace with these key crates:
+
+| Crate | Purpose |
+|-------|--------|
+| **`core/`** | Business logic for Codex - intended as a reusable library crate |
+| **`tui/`** | Fullscreen TUI built with [Ratatui](https://ratatui.rs/) |
+| **`exec/`** | Headless CLI for automation and non-interactive use |
+| **`cli/`** | CLI multitool providing TUI and exec via subcommands |
+| **`app-server/`** | App server protocol implementation |
+| **`app-server-protocol/`** | Protocol types and schemas |
+
+<Info>
+  For detailed information about each crate, read the module-level `README.md` files under each crate directory.
+</Info>
+
+## Building the TypeScript Implementation
+
+<Warning>
+  The TypeScript implementation is **legacy** and has been superseded by the Rust implementation. This section is for reference only.
+</Warning>
+
+The legacy TypeScript CLI lives in `codex-cli/`.
+
+<Steps>
+  <Step title="Navigate to CLI Directory">
+    ```bash
+    cd codex/codex-cli
+    ```
+  </Step>
+
+  <Step title="Build with pnpm">
+    ```bash
+    pnpm build
+    ```
+  </Step>
+
+  <Step title="Run Locally">
+    ```bash
+    # Get usage and options
+    node ./dist/cli.js --help
+    
+    # Run the CLI
+    node ./dist/cli.js
+    
+    # Or link globally
+    pnpm link
+    ```
+  </Step>
+</Steps>
+
+### TypeScript Build Commands
+
+<CodeGroup>
+  ```bash Build
+  pnpm build
+  ```
+
+  ```bash Type Check
+  pnpm typecheck
+  ```
+
+  ```bash Lint
+  pnpm lint
+  ```
+
+  ```bash Fix Formatting
+  pnpm lint:fix
+  pnpm format:fix
+  ```
+</CodeGroup>
+
+## Debugging
+
+### Debugging the Rust CLI
+
+<Steps>
+  <Step title="Enable Verbose Logging">
+    Set the `RUST_LOG` environment variable:
+    
+    ```bash
+    export RUST_LOG=codex_core=debug,codex_tui=debug
+    cargo run --bin codex
+    ```
+  </Step>
+
+  <Step title="View TUI Logs">
+    The TUI logs to `~/.codex/log/codex-tui.log` by default:
+    
+    ```bash
+    tail -F ~/.codex/log/codex-tui.log
+    ```
+    
+    Override the log directory with:
+    
+    ```bash
+    cargo run --bin codex -- -c log_dir=./.codex-log
+    ```
+  </Step>
+</Steps>
+
+<Accordion title="RUST_LOG environment variable details">
+  The TUI defaults to `RUST_LOG=codex_core=info,codex_tui=info,codex_rmcp_client=info`.
+  
+  Non-interactive mode (`codex exec`) defaults to `RUST_LOG=error` with messages printed inline.
+  
+  See the [Rust documentation on `RUST_LOG`](https://docs.rs/env_logger/latest/env_logger/#enabling-logging) for more configuration options.
+</Accordion>
+
+### Debugging the TypeScript CLI
+
+<Steps>
+  <Step title="Build with Source Maps">
+    ```bash
+    cd codex-cli
+    pnpm run build
+    ```
+    
+    This generates `cli.js.map` alongside `cli.js` in the `dist` folder.
+  </Step>
+
+  <Step title="Run with Debugger">
+    ```bash
+    node --inspect-brk ./dist/cli.js
+    ```
+    
+    The program waits until a debugger is attached.
+  </Step>
+
+  <Step title="Attach Debugger">
+    Choose one:
+    
+    - **VS Code:** Run **Debug: Attach to Node Process** from the command palette and select the option with debug port `9229`
+    - **Chrome:** Go to `chrome://inspect` and find **localhost:9229**, then click **inspect**
+  </Step>
+</Steps>
+
+### Enable Debug Output
+
+For the TypeScript CLI, enable full API request and response logging:
+
+```bash
+DEBUG=true codex
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Build fails with missing dependencies">
+    Ensure all required tools are installed:
+    
+    ```bash
+    # For Rust
+    cargo install just cargo-nextest cargo-insta
+    
+    # For TypeScript
+    corepack enable
+    ```
+  </Accordion>
+
+  <Accordion title="Tests fail after building">
+    Make sure you're running tests from the correct directory:
+    
+    - Rust: Run from `codex-rs/`
+    - TypeScript: Run from `codex-cli/`
+    
+    See [Testing](/contributing/testing) for detailed test commands.
+  </Accordion>
+
+  <Accordion title="Format or lint errors">
+    Run the automatic fixers:
+    
+    ```bash
+    # Rust
+    just fmt
+    just fix -p <crate>
+    
+    # TypeScript
+    pnpm lint:fix
+    pnpm format:fix
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Testing" icon="flask" href="/contributing/testing">
+    Learn about testing workflows
+  </Card>
+  <Card title="Guidelines" icon="book" href="/contributing/guidelines">
+    Review coding standards
+  </Card>
+</CardGroup>

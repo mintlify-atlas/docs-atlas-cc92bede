@@ -1,0 +1,133 @@
+---
+title: 'Overview'
+description: 'App Server API architecture and JSON-RPC protocol'
+---
+
+The Codex App Server provides a JSON-RPC 2.0 API that powers rich interfaces like the [Codex VS Code extension](https://marketplace.visualstudio.com/items?itemName=openai.chatgpt).
+
+## Protocol
+
+The App Server uses bidirectional JSON-RPC 2.0 communication with the `"jsonrpc":"2.0"` header omitted on the wire for efficiency.
+
+### Supported Transports
+
+<CardGroup cols={2}>
+  <Card title="stdio" icon="terminal">
+    Default transport using newline-delimited JSON (JSONL)
+    
+    ```bash
+    codex app-server --listen stdio://
+    ```
+  </Card>
+  <Card title="WebSocket" icon="wifi">
+    Experimental transport (unsupported for production)
+    
+    ```bash
+    codex app-server --listen ws://IP:PORT
+    ```
+  </Card>
+</CardGroup>
+
+<Warning>
+WebSocket transport is currently experimental and unsupported. Do not rely on it for production workloads.
+</Warning>
+
+## Core Primitives
+
+The API exposes three top-level primitives representing interactions between a user and Codex:
+
+<AccordionGroup>
+  <Accordion title="Thread" icon="comments">
+    A conversation between a user and the Codex agent. Each thread contains multiple turns.
+    
+    **Key Operations:**
+    - `thread/start` - Create a new thread
+    - `thread/resume` - Continue an existing thread
+    - `thread/fork` - Branch from an existing thread
+    - `thread/list` - List stored threads
+    - `thread/archive` - Archive a thread
+  </Accordion>
+
+  <Accordion title="Turn" icon="rotate">
+    One turn of the conversation, typically starting with a user message and finishing with an agent message. Each turn contains multiple items.
+    
+    **Key Operations:**
+    - `turn/start` - Send user input and begin generation
+    - `turn/interrupt` - Cancel an in-flight turn
+    - `turn/steer` - Add input to an active turn
+  </Accordion>
+
+  <Accordion title="Item" icon="list">
+    Represents user inputs and agent outputs as part of a turn, persisted and used as context for future conversations.
+    
+    **Item Types:**
+    - `userMessage` - User text/image input
+    - `agentMessage` - Agent response
+    - `reasoning` - Agent reasoning traces
+    - `commandExecution` - Shell commands
+    - `fileChange` - File edits
+    - `mcpToolCall` - MCP tool invocations
+    - `webSearch` - Web search requests
+  </Accordion>
+</AccordionGroup>
+
+## Message Schema
+
+You can generate TypeScript or JSON Schema definitions for the current version:
+
+```bash
+codex app-server generate-ts --out DIR
+codex app-server generate-json-schema --out DIR
+```
+
+For experimental API surface:
+
+```bash
+codex app-server generate-ts --out DIR --experimental
+codex app-server generate-json-schema --out DIR --experimental
+```
+
+## Backpressure Behavior
+
+The server uses bounded queues between transport ingress, request processing, and outbound writes.
+
+<Note>
+When request ingress is saturated, new requests are rejected with JSON-RPC error code `-32001` and message `"Server overloaded; retry later."`
+
+Clients should treat this as retryable and use exponential backoff with jitter.
+</Note>
+
+## Tracing & Logging
+
+<ParamField path="RUST_LOG" type="environment variable">
+  Controls log filtering and verbosity
+  
+  ```bash
+  RUST_LOG=debug codex app-server
+  ```
+</ParamField>
+
+<ParamField path="LOG_FORMAT" type="environment variable">
+  Set to `json` to emit structured logs to stderr
+  
+  ```bash
+  LOG_FORMAT=json codex app-server
+  ```
+</ParamField>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Initialization" icon="handshake" href="/api/initialization">
+    Learn how to initialize a connection
+  </Card>
+  <Card title="Threads" icon="comments" href="/api/threads">
+    Manage conversation threads
+  </Card>
+  <Card title="Turns" icon="rotate" href="/api/turns">
+    Start and control conversation turns
+  </Card>
+  <Card title="Items" icon="list" href="/api/items">
+    Understand item types and notifications
+  </Card>
+</CardGroup>

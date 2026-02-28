@@ -1,0 +1,325 @@
+---
+title: Sandboxing
+description: Understand Codex's security model and platform-specific isolation
+---
+
+Codex executes all commands in a sandbox by default, isolating filesystem access and network operations to protect your system. The sandbox uses platform-specific technologies to enforce security boundaries.
+
+## Sandbox modes
+
+Codex supports three sandbox modes with increasing levels of access:
+
+<Tabs>
+  <Tab title="read-only">
+    **Read-only mode** permits:
+    - Reading files anywhere on the filesystem
+    - No write operations
+    - Network access (if enabled)
+    
+    Use for: Code analysis, searching, reviewing
+    
+    ```bash
+    codex --sandbox read-only "analyze the codebase structure"
+    ```
+  </Tab>
+  
+  <Tab title="workspace-write">
+    **Workspace-write mode** (default) permits:
+    - Reading files anywhere
+    - Writing files in the working directory (`cwd`)
+    - Writing to additional directories specified with `--add-dir`
+    - Protected paths like `.git/` remain read-only
+    - Network access (if enabled)
+    
+    Use for: Development, testing, file modifications
+    
+    ```bash
+    codex --sandbox workspace-write "add unit tests"
+    ```
+  </Tab>
+  
+  <Tab title="danger-full-access">
+    **Full-access mode** disables the sandbox:
+    - No filesystem restrictions
+    - No network restrictions
+    - Full system access
+    
+    <Warning>
+      Only use in trusted environments. The agent can modify any file and execute any command.
+    </Warning>
+    
+    ```bash
+    codex --sandbox danger-full-access "install system packages"
+    ```
+  </Tab>
+</Tabs>
+
+## Platform-specific implementation
+
+Codex uses different sandboxing technologies depending on your operating system:
+
+### Linux: Landlock + seccomp
+
+On Linux, Codex uses **Landlock** (kernel-level access control) combined with **seccomp** (system call filtering):
+
+- **Landlock** enforces filesystem access rules
+  - Available on kernel 5.13+ (full support on 5.19+)
+  - Hierarchical path-based access control
+  - Restricts file read/write at the syscall level
+
+- **seccomp** restricts system calls
+  - Blocks network operations when network access is disabled
+  - Prevents privilege escalation
+  - Filters dangerous syscalls
+
+**Bubblewrap pipeline** (experimental):
+Codex also supports **Bubblewrap** for more comprehensive isolation:
+- Namespace isolation (PID, network, mount)
+- Read-only root filesystem with selective bind mounts
+- Protected paths (`.git`, `.codex`) re-bound as read-only
+- Managed network proxy for restricted network access
+
+Enable with:
+```bash
+codex -c features.use_linux_sandbox_bwrap=true
+```
+
+### macOS: Seatbelt (App Sandbox)
+
+On macOS, Codex uses **Seatbelt**, Apple's sandbox profile system:
+
+- Enforces filesystem access rules via sandbox profiles
+- Restricts network access when disabled
+- Integrates with macOS security frameworks
+- Uses `sandbox-exec` to apply profiles
+
+The Seatbelt profile is dynamically generated based on:
+- Sandbox mode (`read-only`, `workspace-write`, etc.)
+- Writable roots (`cwd` and `--add-dir` paths)
+- Protected paths (`.git`, `.codex`, etc.)
+- Network access settings
+
+### Windows: Restricted tokens + job objects
+
+On Windows, Codex uses **restricted tokens** and **job objects**:
+
+- **Restricted tokens** limit privileges
+  - Removes admin rights
+  - Restricts access to sensitive resources
+  
+- **Job objects** enforce resource limits
+  - Process isolation
+  - Resource quotas
+  - Network policy enforcement
+
+Windows sandboxing supports both elevated and unelevated modes. Use `windowsSandbox/setupStart` via the app-server API to configure.
+
+## Protected paths
+
+Even in `workspace-write` mode, certain paths are always read-only:
+
+- **`.git/`** - Git repository data
+- **`.codex/`** - Codex configuration and data
+- **`gitdir:` symlinks** - Git worktree references
+
+These protections prevent accidental corruption of critical data.
+
+<Note>
+  Protected paths are enforced recursively. For example, `.git/hooks/` is also read-only.
+</Note>
+
+## Network access
+
+Network access is controlled independently of filesystem sandboxing:
+
+```bash
+# Enable network access
+codex -c sandbox_policy.network_access=enabled "fetch latest API docs"
+
+# Disable network access (default in some modes)
+codex -c sandbox_policy.network_access=restricted "work offline"
+```
+
+### Network proxy (Linux Bubblewrap)
+
+When using Bubblewrap with restricted network:
+- Network namespace is isolated via `--unshare-net`
+- A managed proxy routes allowed traffic
+- TCP connections are bridged through Unix domain sockets
+- seccomp blocks new socket creation after setup
+
+This allows fine-grained network policy enforcement.
+
+## Additional writable directories
+
+Extend the writable scope beyond `cwd`:
+
+```bash
+codex --add-dir /tmp/scratch --add-dir ~/documents "process data files"
+```
+
+All specified directories:
+- Must be absolute paths
+- Are added to the sandbox's writable roots
+- Still respect protected path rules
+
+## Sandbox escalation
+
+When a command needs to escape the sandbox (e.g., to install packages, access `/usr/local`, or make network requests), the agent can request escalation.
+
+### How escalation works
+
+<Steps>
+  <Step title="Agent detects restriction">
+    The command fails due to sandbox constraints (e.g., permission denied, network unreachable)
+  </Step>
+  
+  <Step title="Agent requests approval">
+    Codex prompts you to run the command outside the sandbox:
+    ```
+    Command failed in sandbox. Allow running unrestricted?
+    
+    npm install express
+    
+    [a] Accept once
+    [s] Accept for session  
+    [p] Accept and add to policy
+    [d] Decline
+    ```
+  </Step>
+  
+  <Step title="You approve or decline">
+    Choose the appropriate approval level based on trust and scope
+  </Step>
+  
+  <Step title="Command re-runs">
+    If approved, the command executes outside the sandbox with full access
+  </Step>
+</Steps>
+
+### Approval integration
+
+Sandbox escalation integrates with the [approval system](/concepts/approvals):
+
+- **never** - Auto-approve escalation (no sandbox)
+- **on-request** - Prompt for escalation approval
+- **unless-trusted** - Always prompt unless covered by policy
+- **on-failure** - Only prompt after sandbox failures
+
+## Debugging sandbox issues
+
+If commands fail unexpectedly in the sandbox:
+
+### Check sandbox status
+
+```bash
+# View current sandbox mode
+codex -c sandbox_policy.mode=read-only --help
+
+# Test a specific command
+codex exec "ls -la /etc"
+```
+
+### Enable full access temporarily
+
+```bash
+codex --sandbox danger-full-access "install dependencies"
+```
+
+### Review sandbox logs
+
+On Linux with Landlock:
+```bash
+# Check kernel support
+codex debug landlock
+
+# View sandbox diagnostics
+RUST_LOG=debug codex "test command"
+```
+
+On macOS with Seatbelt:
+```bash
+# Check Seatbelt denials
+log show --predicate 'eventMessage contains "Sandbox"' --last 1h
+```
+
+### Common issues
+
+<AccordionGroup>
+  <Accordion title="Permission denied writing to /usr/local">
+    `/usr/local` is outside the workspace. Either:
+    - Use `--add-dir /usr/local` to make it writable
+    - Use `--sandbox danger-full-access` for full access
+    - Allow the agent to request escalation
+  </Accordion>
+  
+  <Accordion title="Network connection refused">
+    Network access may be restricted. Enable with:
+    ```bash
+    codex -c sandbox_policy.network_access=enabled
+    ```
+  </Accordion>
+  
+  <Accordion title="Cannot modify .git directory">
+    `.git` is protected by default. Use `danger-full-access` or manually run git commands outside Codex.
+  </Accordion>
+  
+  <Accordion title="Landlock not supported on this kernel">
+    Landlock requires Linux kernel 5.13+. On older kernels:
+    - Upgrade your kernel, or
+    - Use `danger-full-access` mode (no sandbox)
+  </Accordion>
+</AccordionGroup>
+
+## Configuration
+
+Configure sandboxing in `~/.codex/config.toml`:
+
+```toml
+[sandbox_policy]
+mode = "workspace-write"  # read-only | workspace-write | danger-full-access
+network_access = "enabled"  # enabled | restricted
+
+# Additional writable roots
+writable_roots = [
+  "/tmp/codex-scratch",
+  "/Users/me/data"
+]
+
+# Protected paths (added to defaults)
+protected_paths = [
+  ".env",
+  "secrets/"
+]
+```
+
+## Best practices
+
+<CardGroup cols={2}>
+  <Card title="Use workspace-write by default" icon="pencil">
+    Provides good balance between safety and functionality
+  </Card>
+  
+  <Card title="Enable network selectively" icon="globe">
+    Only enable when tasks require internet access
+  </Card>
+  
+  <Card title="Review escalation requests" icon="eye">
+    Carefully examine commands before approving escalation
+  </Card>
+  
+  <Card title="Use full-access sparingly" icon="triangle-exclamation">
+    Reserve `danger-full-access` for trusted environments only
+  </Card>
+</CardGroup>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Approvals" icon="circle-check" href="/concepts/approvals">
+    Configure when to prompt for permission
+  </Card>
+  <Card title="Non-interactive mode" icon="code" href="/concepts/non-interactive-mode">
+    Use sandboxing in CI/CD
+  </Card>
+</CardGroup>

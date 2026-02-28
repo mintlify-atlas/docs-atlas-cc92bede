@@ -1,0 +1,570 @@
+---
+title: "Usage"
+description: "Learn how to use the Codex TypeScript SDK with detailed examples and API documentation"
+---
+
+## Quick Start
+
+The most basic usage involves creating a `Codex` client, starting a thread, and running a turn:
+
+```typescript
+import { Codex } from "@openai/codex-sdk";
+
+const codex = new Codex();
+const thread = codex.startThread();
+const turn = await thread.run("Diagnose the test failure and propose a fix");
+
+console.log(turn.finalResponse);
+console.log(turn.items);
+```
+
+## Core SDK Exports
+
+The SDK exports the following main classes and types:
+
+### Main Classes
+
+<ResponseField name="Codex" type="class">
+  Main client for interacting with the Codex agent. Used to create and resume threads.
+</ResponseField>
+
+<ResponseField name="Thread" type="class">
+  Represents a conversation with the agent. Supports multiple consecutive turns.
+</ResponseField>
+
+### Type Exports
+
+<CodeGroup>
+
+```typescript Events
+import type {
+  ThreadEvent,
+  ThreadStartedEvent,
+  TurnStartedEvent,
+  TurnCompletedEvent,
+  TurnFailedEvent,
+  ItemStartedEvent,
+  ItemUpdatedEvent,
+  ItemCompletedEvent,
+  ThreadError,
+  ThreadErrorEvent,
+  Usage,
+} from "@openai/codex-sdk";
+```
+
+```typescript Items
+import type {
+  ThreadItem,
+  AgentMessageItem,
+  ReasoningItem,
+  CommandExecutionItem,
+  FileChangeItem,
+  McpToolCallItem,
+  WebSearchItem,
+  TodoListItem,
+  ErrorItem,
+} from "@openai/codex-sdk";
+```
+
+```typescript Options
+import type {
+  CodexOptions,
+  ThreadOptions,
+  TurnOptions,
+  ApprovalMode,
+  SandboxMode,
+  ModelReasoningEffort,
+  WebSearchMode,
+} from "@openai/codex-sdk";
+```
+
+```typescript Results
+import type {
+  RunResult,
+  RunStreamedResult,
+  Input,
+  UserInput,
+} from "@openai/codex-sdk";
+```
+
+</CodeGroup>
+
+## Creating a Codex Client
+
+The `Codex` class accepts optional configuration:
+
+```typescript
+import { Codex } from "@openai/codex-sdk";
+
+const codex = new Codex({
+  // API configuration
+  baseUrl: "https://api.openai.com/v1",
+  apiKey: process.env.OPENAI_API_KEY,
+  
+  // CLI path override (if codex is not in PATH)
+  codexPathOverride: "/custom/path/to/codex",
+  
+  // Environment variables for the CLI process
+  env: {
+    PATH: process.env.PATH,
+    HOME: process.env.HOME,
+  },
+  
+  // Additional CLI configuration overrides
+  config: {
+    show_raw_agent_reasoning: true,
+    sandbox_workspace_write: {
+      network_access: true,
+    },
+  },
+});
+```
+
+<ParamField path="baseUrl" type="string" optional>
+  Custom API base URL. Defaults to the OpenAI API endpoint.
+</ParamField>
+
+<ParamField path="apiKey" type="string" optional>
+  OpenAI API key. Can also be set via `OPENAI_API_KEY` environment variable.
+</ParamField>
+
+<ParamField path="codexPathOverride" type="string" optional>
+  Path to the `codex` CLI binary. Used when `codex` is not in your PATH.
+</ParamField>
+
+<ParamField path="env" type="Record<string, string>" optional>
+  Environment variables passed to the Codex CLI process. When provided, the SDK will not inherit from `process.env`.
+</ParamField>
+
+<ParamField path="config" type="CodexConfigObject" optional>
+  Additional `--config` overrides passed to the CLI. The SDK flattens this object into dotted paths.
+</ParamField>
+
+## Starting a Thread
+
+Create a new conversation thread with optional configuration:
+
+```typescript
+const thread = codex.startThread({
+  workingDirectory: "/path/to/project",
+  sandboxMode: "workspace-write",
+  model: "gpt-4",
+  skipGitRepoCheck: false,
+  modelReasoningEffort: "medium",
+  networkAccessEnabled: true,
+  webSearchMode: "cached",
+  approvalPolicy: "on-request",
+  additionalDirectories: ["/path/to/extra/context"],
+});
+```
+
+### Thread Options
+
+<ParamField path="workingDirectory" type="string" optional>
+  Working directory for the agent. Defaults to the current directory.
+</ParamField>
+
+<ParamField path="sandboxMode" type="'read-only' | 'workspace-write' | 'danger-full-access'" optional>
+  File system access level for the agent.
+</ParamField>
+
+<ParamField path="model" type="string" optional>
+  Model to use for this thread (e.g., `"gpt-4"`, `"gpt-4-turbo"`).
+</ParamField>
+
+<ParamField path="skipGitRepoCheck" type="boolean" optional>
+  Skip the Git repository check. Defaults to `false`.
+</ParamField>
+
+<ParamField path="modelReasoningEffort" type="'minimal' | 'low' | 'medium' | 'high' | 'xhigh'" optional>
+  Amount of reasoning effort the model should apply.
+</ParamField>
+
+<ParamField path="networkAccessEnabled" type="boolean" optional>
+  Enable network access for the agent.
+</ParamField>
+
+<ParamField path="webSearchMode" type="'disabled' | 'cached' | 'live'" optional>
+  Web search configuration for the agent.
+</ParamField>
+
+<ParamField path="approvalPolicy" type="'never' | 'on-request' | 'on-failure' | 'untrusted'" optional>
+  When to request user approval for actions.
+</ParamField>
+
+<ParamField path="additionalDirectories" type="string[]" optional>
+  Additional directories to include in the agent's context.
+</ParamField>
+
+## Running a Turn
+
+### Buffered Execution
+
+Use `run()` to execute a turn and wait for the complete result:
+
+```typescript
+const turn = await thread.run("Fix the failing tests");
+
+console.log("Response:", turn.finalResponse);
+console.log("Items:", turn.items);
+console.log("Usage:", turn.usage);
+```
+
+The returned `Turn` object contains:
+
+<ResponseField name="finalResponse" type="string">
+  The agent's final text response (or JSON if using structured output).
+</ResponseField>
+
+<ResponseField name="items" type="ThreadItem[]">
+  Array of all items produced during the turn (commands, file changes, tool calls, etc.).
+</ResponseField>
+
+<ResponseField name="usage" type="Usage | null">
+  Token usage statistics for the turn.
+</ResponseField>
+
+### Streaming Events
+
+Use `runStreamed()` to receive real-time events as the agent works:
+
+```typescript
+const { events } = await thread.runStreamed("Analyze this codebase");
+
+for await (const event of events) {
+  switch (event.type) {
+    case "thread.started":
+      console.log("Thread ID:", event.thread_id);
+      break;
+      
+    case "turn.started":
+      console.log("Turn started");
+      break;
+      
+    case "item.started":
+      console.log("Item started:", event.item);
+      break;
+      
+    case "item.updated":
+      console.log("Item updated:", event.item);
+      break;
+      
+    case "item.completed":
+      console.log("Item completed:", event.item);
+      break;
+      
+    case "turn.completed":
+      console.log("Turn completed. Usage:", event.usage);
+      break;
+      
+    case "turn.failed":
+      console.error("Turn failed:", event.error.message);
+      break;
+      
+    case "error":
+      console.error("Fatal error:", event.message);
+      break;
+  }
+}
+```
+
+## Structured Output
+
+Provide a JSON schema to get structured responses:
+
+```typescript
+const schema = {
+  type: "object",
+  properties: {
+    summary: { type: "string" },
+    status: { type: "string", enum: ["ok", "action_required"] },
+    issues: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          file: { type: "string" },
+          line: { type: "number" },
+          description: { type: "string" },
+        },
+        required: ["file", "description"],
+      },
+    },
+  },
+  required: ["summary", "status"],
+  additionalProperties: false,
+} as const;
+
+const turn = await thread.run("Analyze the codebase for issues", {
+  outputSchema: schema,
+});
+
+const result = JSON.parse(turn.finalResponse);
+console.log(result.summary);
+console.log(result.issues);
+```
+
+### Using Zod Schemas
+
+You can also use Zod schemas with the `zod-to-json-schema` package:
+
+```typescript
+import { z } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
+
+const schema = z.object({
+  summary: z.string(),
+  status: z.enum(["ok", "action_required"]),
+  issues: z.array(
+    z.object({
+      file: z.string(),
+      line: z.number().optional(),
+      description: z.string(),
+    })
+  ),
+});
+
+const turn = await thread.run("Analyze the codebase", {
+  outputSchema: zodToJsonSchema(schema, { target: "openAi" }),
+});
+
+const result = schema.parse(JSON.parse(turn.finalResponse));
+```
+
+## Attaching Images
+
+Provide images alongside text prompts:
+
+```typescript
+const turn = await thread.run([
+  { type: "text", text: "Describe these UI screenshots and suggest improvements" },
+  { type: "local_image", path: "./screenshots/dashboard.png" },
+  { type: "local_image", path: "./screenshots/settings.png" },
+]);
+```
+
+<Note>
+Image entries must use the `local_image` type with an absolute or relative path to the image file.
+</Note>
+
+## Resuming Threads
+
+Threads are persisted in `~/.codex/sessions`. Resume a previous conversation:
+
+```typescript
+// Save the thread ID from a previous session
+const threadId = thread.id;
+
+// Later, resume the thread
+const resumedThread = codex.resumeThread(threadId);
+const nextTurn = await resumedThread.run("Continue from where we left off");
+```
+
+## Working with Thread Items
+
+Each turn produces various item types representing the agent's work:
+
+<CodeGroup>
+
+```typescript Agent Messages
+if (item.type === "agent_message") {
+  console.log("Agent says:", item.text);
+}
+```
+
+```typescript Command Execution
+if (item.type === "command_execution") {
+  console.log("Command:", item.command);
+  console.log("Output:", item.aggregated_output);
+  console.log("Exit code:", item.exit_code);
+  console.log("Status:", item.status);
+}
+```
+
+```typescript File Changes
+if (item.type === "file_change") {
+  console.log("Changes:", item.changes);
+  item.changes.forEach(change => {
+    console.log(`${change.kind}: ${change.path}`);
+  });
+  console.log("Status:", item.status);
+}
+```
+
+```typescript MCP Tool Calls
+if (item.type === "mcp_tool_call") {
+  console.log("Server:", item.server);
+  console.log("Tool:", item.tool);
+  console.log("Arguments:", item.arguments);
+  console.log("Result:", item.result);
+  console.log("Status:", item.status);
+}
+```
+
+```typescript Web Search
+if (item.type === "web_search") {
+  console.log("Query:", item.query);
+}
+```
+
+```typescript Todo List
+if (item.type === "todo_list") {
+  item.items.forEach(todo => {
+    const status = todo.completed ? "✓" : "○";
+    console.log(`${status} ${todo.text}`);
+  });
+}
+```
+
+```typescript Reasoning
+if (item.type === "reasoning") {
+  console.log("Agent reasoning:", item.text);
+}
+```
+
+```typescript Errors
+if (item.type === "error") {
+  console.error("Error:", item.message);
+}
+```
+
+</CodeGroup>
+
+## Token Usage
+
+Access detailed token usage after each turn:
+
+```typescript
+const turn = await thread.run("Refactor this module");
+
+if (turn.usage) {
+  console.log("Input tokens:", turn.usage.input_tokens);
+  console.log("Cached input tokens:", turn.usage.cached_input_tokens);
+  console.log("Output tokens:", turn.usage.output_tokens);
+  
+  const total = turn.usage.input_tokens + turn.usage.output_tokens;
+  const cacheHitRate = turn.usage.cached_input_tokens / turn.usage.input_tokens;
+  console.log("Total tokens:", total);
+  console.log("Cache hit rate:", (cacheHitRate * 100).toFixed(2) + "%");
+}
+```
+
+## Aborting a Turn
+
+Cancel a turn using an `AbortSignal`:
+
+```typescript
+const controller = new AbortController();
+
+// Cancel after 30 seconds
+setTimeout(() => controller.abort(), 30000);
+
+try {
+  const turn = await thread.run("Long running task", {
+    signal: controller.signal,
+  });
+} catch (error) {
+  if (error.name === "AbortError") {
+    console.log("Turn was cancelled");
+  }
+}
+```
+
+## Error Handling
+
+Handle errors gracefully:
+
+```typescript
+try {
+  const turn = await thread.run("Fix the bug");
+  console.log(turn.finalResponse);
+} catch (error) {
+  if (error.message.includes("rate limit")) {
+    console.error("Rate limit exceeded. Retrying...");
+    // Implement retry logic
+  } else if (error.message.includes("authentication")) {
+    console.error("Invalid API key");
+  } else {
+    console.error("Unexpected error:", error.message);
+  }
+}
+```
+
+## Advanced Example
+
+Here's a complete example combining multiple features:
+
+```typescript
+import { Codex } from "@openai/codex-sdk";
+import { z } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
+
+// Define structured output schema
+const analysisSchema = z.object({
+  summary: z.string(),
+  filesAnalyzed: z.number(),
+  issues: z.array(
+    z.object({
+      severity: z.enum(["low", "medium", "high"]),
+      file: z.string(),
+      description: z.string(),
+    })
+  ),
+  recommendations: z.array(z.string()),
+});
+
+// Create Codex client
+const codex = new Codex({
+  apiKey: process.env.OPENAI_API_KEY,
+  config: {
+    show_raw_agent_reasoning: true,
+  },
+});
+
+// Start thread with configuration
+const thread = codex.startThread({
+  workingDirectory: "/path/to/project",
+  sandboxMode: "read-only",
+  modelReasoningEffort: "high",
+});
+
+// Run analysis with streaming
+const { events } = await thread.runStreamed(
+  "Analyze the codebase for security issues and best practices",
+  {
+    outputSchema: zodToJsonSchema(analysisSchema, { target: "openAi" }),
+  }
+);
+
+// Process events
+for await (const event of events) {
+  if (event.type === "item.completed") {
+    const item = event.item;
+    
+    if (item.type === "command_execution") {
+      console.log(`Executed: ${item.command}`);
+    } else if (item.type === "agent_message") {
+      const analysis = analysisSchema.parse(JSON.parse(item.text));
+      
+      console.log("\nAnalysis Complete");
+      console.log("Summary:", analysis.summary);
+      console.log("Files analyzed:", analysis.filesAnalyzed);
+      console.log("\nIssues found:");
+      
+      analysis.issues.forEach(issue => {
+        console.log(`  [${issue.severity.toUpperCase()}] ${issue.file}`);
+        console.log(`    ${issue.description}`);
+      });
+      
+      console.log("\nRecommendations:");
+      analysis.recommendations.forEach((rec, i) => {
+        console.log(`  ${i + 1}. ${rec}`);
+      });
+    }
+  }
+  
+  if (event.type === "turn.completed") {
+    console.log("\nToken usage:", event.usage);
+  }
+}
+```

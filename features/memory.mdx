@@ -1,0 +1,464 @@
+---
+title: Memory & Project Docs
+description: Give Codex persistent context and guidance through AGENTS.md files
+---
+
+## What is Memory?
+
+Codex can remember project-specific instructions, preferences, and context through `AGENTS.md` files. These files act as "project documentation for AI agents" and help Codex understand your codebase, workflows, and conventions.
+
+<Note>
+Think of `AGENTS.md` as persistent memory that travels with your project—Codex reads these files on startup and uses them to inform every action.
+</Note>
+
+## How AGENTS.md Files Work
+
+Codex looks for `AGENTS.md` files in multiple locations and merges them top-down:
+
+<Steps>
+  <Step title="Global guidance">
+    `~/.codex/AGENTS.md` - Personal preferences that apply to all projects
+  </Step>
+  
+  <Step title="Project guidance">
+    `AGENTS.md` at repo root - Shared project notes for all team members
+  </Step>
+  
+  <Step title="Directory guidance">
+    `AGENTS.md` in the current working directory - Sub-folder/feature specifics
+  </Step>
+</Steps>
+
+<Info>
+All three files are merged together, with more specific (closer) files taking priority when there are conflicts.
+</Info>
+
+## Use Cases
+
+### Personal Preferences (~/.codex/AGENTS.md)
+
+Your global `AGENTS.md` file can include personal coding preferences:
+
+```markdown
+# Personal Coding Preferences
+
+- Always use functional components in React (no class components)
+- Prefer `const` over `let` unless mutation is necessary
+- Use Prettier for formatting with 2-space indentation
+- Write descriptive commit messages in conventional commit format
+- Only use git commands when explicitly requested
+```
+
+### Project Standards (Project Root AGENTS.md)
+
+The project-level file should document team conventions:
+
+```markdown
+# Project Guidelines
+
+## Architecture
+
+This is a Next.js application with:
+- `/app` - Next.js app router pages
+- `/components` - Reusable React components
+- `/lib` - Utility functions and helpers
+- `/api` - API route handlers
+
+## Coding Standards
+
+- Use TypeScript for all new files
+- Follow the ESLint configuration (run `npm run lint`)
+- Write unit tests for business logic in `__tests__` directories
+- Use Tailwind CSS for styling (no inline styles)
+
+## Database
+
+We use Prisma with PostgreSQL. Schema lives in `prisma/schema.prisma`.
+Always run `npx prisma migrate dev` after schema changes.
+
+## Testing
+
+Run tests with `npm test` before committing. We use:
+- Vitest for unit tests
+- Playwright for E2E tests
+
+## Deployment
+
+Deploys happen automatically via Vercel when merging to `main`.
+Staging environment: `staging` branch
+```
+
+### Feature-Specific Context (Subdirectory AGENTS.md)
+
+Add context for specific parts of the codebase:
+
+```markdown
+# Authentication Module
+
+This directory implements authentication using NextAuth.js.
+
+## Key Files
+
+- `auth-config.ts` - NextAuth configuration
+- `auth-provider.tsx` - React context provider
+- `middleware.ts` - Auth middleware for protected routes
+
+## Important Notes
+
+- Never modify the session token structure without updating the middleware
+- All auth errors should be logged to Sentry
+- Password reset emails use the template in `/emails/reset-password.tsx`
+
+## Testing Auth
+
+Use the test accounts in `.env.test` for local testing.
+```
+
+## What to Include
+
+<AccordionGroup>
+  <Accordion title="Codebase Structure" icon="folder-tree">
+    Explain the organization of your codebase:
+    - Key directories and their purposes
+    - Where different types of files live
+    - How modules are organized
+  </Accordion>
+  
+  <Accordion title="Tech Stack & Dependencies" icon="layer-group">
+    Document the technologies you're using:
+    - Frameworks and libraries
+    - Package managers and build tools
+    - Runtime environments and versions
+  </Accordion>
+  
+  <Accordion title="Coding Standards" icon="code">
+    Define your conventions:
+    - Code style and formatting rules
+    - Naming conventions
+    - File organization patterns
+    - Testing requirements
+  </Accordion>
+  
+  <Accordion title="Development Workflows" icon="diagram-project">
+    Explain processes and procedures:
+    - How to run the project locally
+    - Testing and linting commands
+    - Build and deployment processes
+    - Git workflow and branching strategy
+  </Accordion>
+  
+  <Accordion title="Domain Knowledge" icon="brain">
+    Provide context-specific information:
+    - Business logic and rules
+    - API integrations and authentication
+    - Database schemas and relationships
+    - External services and their purposes
+  </Accordion>
+  
+  <Accordion title="Common Pitfalls" icon="triangle-exclamation">
+    Warn about common mistakes:
+    - Known bugs or limitations
+    - Performance considerations
+    - Security requirements
+    - Things that are easy to break
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+### Keep It Concise
+
+Codex's context window is limited. Include only information that:
+- Isn't obvious from the code itself
+- Codex would struggle to infer
+- Affects how Codex should work
+
+<Warning>
+Don't duplicate information that's already in documentation, comments, or the code. Focus on conventions, workflows, and non-obvious context.
+</Warning>
+
+### Use Clear Structure
+
+Organize your AGENTS.md with headers:
+
+```markdown
+# Project Name
+
+## Architecture
+...
+
+## Coding Standards
+...
+
+## Testing
+...
+```
+
+### Be Specific
+
+Instead of:
+```markdown
+- Use TypeScript
+```
+
+Write:
+```markdown
+- Use TypeScript with strict mode enabled
+- All API responses must have defined types in `/types/api.ts`
+- Use Zod for runtime validation of external data
+```
+
+### Include Examples
+
+Codex learns better from examples:
+
+```markdown
+## Error Handling
+
+Wrap async operations in try-catch blocks and log errors:
+
+```typescript
+try {
+  const result = await fetchData();
+  return result;
+} catch (error) {
+  logger.error('Failed to fetch data', { error });
+  throw new AppError('Data fetch failed', { cause: error });
+}
+```
+```
+
+## Advanced Usage
+
+### Conditional Instructions
+
+You can include instructions that apply only in certain contexts:
+
+```markdown
+## API Development
+
+When working with API routes:
+- All routes must have request validation using Zod
+- Use the middleware in `/lib/api-middleware.ts`
+- Return errors in the format: `{ error: string, code: string }`
+
+## Frontend Development
+
+When working with React components:
+- Use the custom hooks in `/hooks` for common patterns
+- Keep components under 200 lines (split if larger)
+- Use Storybook for component development
+```
+
+### Tool-Specific Configuration
+
+```markdown
+## Database Migrations
+
+Always use Prisma for database changes:
+
+1. Update `prisma/schema.prisma`
+2. Run `npx prisma migrate dev --name descriptive-name`
+3. Review the generated migration SQL
+4. Test locally before committing
+
+Never modify migration files after they're committed.
+```
+
+### Team Conventions
+
+```markdown
+## Pull Request Guidelines
+
+- PR titles must follow conventional commits format
+- Include a description of what changed and why
+- Link to the relevant Linear issue
+- Request review from @team-backend for API changes
+- Request review from @team-frontend for UI changes
+
+## Commit Messages
+
+Format: `type(scope): description`
+
+Examples:
+- `feat(auth): add password reset flow`
+- `fix(api): handle null user in session`
+- `docs(readme): update installation steps`
+```
+
+## Disabling Project Docs
+
+If you want Codex to ignore AGENTS.md files:
+
+### Via Command Line
+
+```bash
+codex --no-project-doc
+```
+
+### Via Environment Variable
+
+```bash
+export CODEX_DISABLE_PROJECT_DOC=1
+codex
+```
+
+### In Configuration
+
+```toml
+# ~/.codex/config.toml
+[project_docs]
+enabled = false
+```
+
+## Examples
+
+### Example: TypeScript Project
+
+```markdown
+# TypeScript Project Guidelines
+
+## Structure
+
+- `/src` - Source code
+- `/src/types` - TypeScript type definitions
+- `/tests` - Test files (use `.test.ts` suffix)
+- `/build` - Compiled output (gitignored)
+
+## TypeScript Configuration
+
+- Use `strict: true` mode
+- Prefer `type` over `interface` for object types
+- Use `unknown` instead of `any` for truly unknown types
+- Export types alongside implementations
+
+## Testing
+
+Run `npm test` to run all tests.
+Run `npm run test:watch` during development.
+
+All public functions should have unit tests.
+```
+
+### Example: Python/Django Project
+
+```markdown
+# Django Project Guidelines
+
+## Apps
+
+- `users/` - User authentication and profiles
+- `api/` - REST API endpoints
+- `core/` - Shared utilities and models
+
+## Django Conventions
+
+- All models must have `__str__` methods
+- Use class-based views for complex views
+- Use function-based views for simple views
+- Migrations should be reviewed before committing
+
+## Database
+
+We use PostgreSQL. Local database: `codex_dev`
+
+Create migrations:
+```bash
+python manage.py makemigrations
+python manage.py migrate
+```
+
+## Testing
+
+Run tests:
+```bash
+python manage.py test
+```
+
+Use factories from `tests/factories.py` for test data.
+```
+
+### Example: Monorepo
+
+```markdown
+# Monorepo Structure
+
+This is a pnpm monorepo with multiple packages:
+
+- `/packages/ui` - Shared React component library
+- `/packages/utils` - Shared utility functions
+- `/apps/web` - Main Next.js application
+- `/apps/admin` - Admin dashboard
+
+## Working with Packages
+
+Install dependencies from the root:
+```bash
+pnpm install
+```
+
+Add a dependency to a specific package:
+```bash
+pnpm add <package> --filter @myapp/web
+```
+
+## Building
+
+Build all packages:
+```bash
+pnpm build
+```
+
+Build a specific package:
+```bash
+pnpm --filter @myapp/ui build
+```
+```
+
+## Tips for Effective Memory
+
+<CardGroup cols={2}>
+  <Card title="Start Small" icon="seedling">
+    Begin with a minimal AGENTS.md and add to it as you discover what Codex needs to know.
+  </Card>
+  
+  <Card title="Update Regularly" icon="rotate">
+    Keep AGENTS.md in sync with your project as it evolves. Stale information is worse than no information.
+  </Card>
+  
+  <Card title="Be Specific" icon="bullseye">
+    Generic advice like "write good code" doesn't help. Specific conventions and examples do.
+  </Card>
+  
+  <Card title="Test It" icon="flask">
+    After updating AGENTS.md, test that Codex follows the new instructions by asking it to perform relevant tasks.
+  </Card>
+</CardGroup>
+
+## AGENTS.md vs Skills
+
+Both AGENTS.md and Skills provide context to Codex, but they serve different purposes:
+
+| AGENTS.md | Skills |
+|-----------|--------|
+| Project-specific context | Reusable, domain-specific knowledge |
+| Always loaded | Loaded on-demand when relevant |
+| Lightweight guidelines | Can include scripts, references, and assets |
+| Personal or project preferences | Procedural knowledge and workflows |
+| Easy to edit (just a markdown file) | More structured (requires SKILL.md format) |
+
+**Use AGENTS.md for:** Project conventions, team preferences, codebase structure
+
+**Use Skills for:** Reusable workflows, tool integrations, complex procedures
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Skills System" icon="puzzle-piece" href="/features/skills">
+    Learn about skills for reusable workflows
+  </Card>
+  
+  <Card title="Configuration" icon="gear" href="/core-concepts/configuration">
+    Configure Codex for your project
+  </Card>
+</CardGroup>

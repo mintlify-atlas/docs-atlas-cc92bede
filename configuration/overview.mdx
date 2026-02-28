@@ -1,0 +1,111 @@
+---
+title: Configuration Overview
+description: Learn how to configure Codex CLI with config.toml
+---
+
+Codex CLI uses a configuration file located at `~/.codex/config.toml` to customize behavior, model settings, approval policies, and integrations.
+
+## Configuration File Location
+
+Codex looks for configuration in the following locations:
+
+- **Global config**: `~/.codex/config.toml` - Your personal configuration
+- **Project config**: `.codex/config.toml` in your project root - Project-specific settings
+- **Environment variables**: Override config values using environment variables
+
+Configuration files are merged with project settings taking precedence over global settings.
+
+## Basic Structure
+
+Here's a minimal `config.toml` example:
+
+```toml
+# Model selection
+model = "o4-mini"
+
+# Approval policy for command execution
+approval_policy = "on-request"
+
+# Sandbox mode for safety
+sandbox_mode = "workspace-write"
+
+# Enable desktop notifications
+[tui]
+notifications = true
+```
+
+## Configuration Sections
+
+Codex configuration is organized into several sections:
+
+### Core Settings
+
+- **Model configuration** - Select AI models and providers
+- **Approval policies** - Control when Codex asks for permission
+- **Sandbox mode** - Define execution boundaries
+- **Authentication** - API keys and login methods
+
+### Advanced Features
+
+- **MCP servers** - Connect to Model Context Protocol servers
+- **Custom instructions** - Personalize agent behavior
+- **Profiles** - Switch between different configuration sets
+- **Network permissions** - Control network access for tools
+
+### UI & Experience
+
+- **TUI settings** - Customize terminal interface
+- **Notifications** - Desktop notification preferences
+- **History** - Conversation history settings
+- **Analytics** - Usage data collection preferences
+
+## Quick Start
+
+If you don't have a config file yet, Codex will create one automatically on first run. To create or edit your configuration:
+
+```bash
+# Create the config directory
+mkdir -p ~/.codex
+
+# Edit your config file
+$EDITOR ~/.codex/config.toml
+```
+
+## Configuration Schema
+
+Codex includes a JSON schema for `config.toml` validation at:
+```
+codex-rs/core/config.schema.json
+```
+
+This schema documents all available configuration options and is kept in sync with the codebase.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Basic Configuration" icon="sliders" href="/configuration/basic">
+    Learn about essential configuration options
+  </Card>
+  <Card title="Advanced Configuration" icon="gears" href="/configuration/advanced">
+    Explore advanced features and customization
+  </Card>
+  <Card title="Custom Providers" icon="plug" href="/configuration/custom-providers">
+    Configure alternative AI providers
+  </Card>
+  <Card title="MCP Servers" icon="server" href="/configuration/mcp-servers">
+    Integrate Model Context Protocol servers
+  </Card>
+</CardGroup>
+
+## Configuration Layers
+
+Codex merges configuration from multiple sources in this order (later sources override earlier ones):
+
+1. Built-in defaults
+2. Global config (`~/.codex/config.toml`)
+3. Project config (`.codex/config.toml`)
+4. Profile overrides (when using `--profile`)
+5. CLI flags (e.g., `--model`, `--approval-policy`)
+6. Environment variables
+
+This layering allows you to set defaults globally while customizing behavior per-project or per-invocation.

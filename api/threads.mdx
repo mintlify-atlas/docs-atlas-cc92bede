@@ -1,0 +1,649 @@
+---
+title: 'Threads'
+description: 'Thread lifecycle and management APIs'
+---
+
+A **Thread** is a conversation between a user and the Codex agent. Each thread contains multiple turns and persists as a rollout file on disk.
+
+## Thread Object
+
+<ResponseField name="id" type="string">
+  Unique thread identifier (e.g., `thr_123`)
+</ResponseField>
+
+<ResponseField name="preview" type="string">
+  Usually the first user message in the thread, if available
+</ResponseField>
+
+<ResponseField name="ephemeral" type="boolean">
+  Whether the thread is ephemeral and should not be materialized on disk
+</ResponseField>
+
+<ResponseField name="modelProvider" type="string">
+  Model provider used for this thread (e.g., `openai`)
+</ResponseField>
+
+<ResponseField name="createdAt" type="number">
+  Unix timestamp (seconds) when the thread was created
+</ResponseField>
+
+<ResponseField name="updatedAt" type="number">
+  Unix timestamp (seconds) when the thread was last updated
+</ResponseField>
+
+<ResponseField name="status" type="ThreadStatus">
+  Current runtime status for the thread
+  
+  <Expandable title="Status types">
+    - `notLoaded` - Thread not currently loaded in memory
+    - `idle` - Thread loaded but no active turn
+    - `systemError` - Thread encountered a system error
+    - `active` - Thread has an active turn (includes `activeFlags` array)
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="path" type="string | null">
+  Path to the thread rollout file on disk (null for ephemeral threads)
+</ResponseField>
+
+<ResponseField name="cwd" type="string">
+  Working directory captured for the thread
+</ResponseField>
+
+<ResponseField name="turns" type="Turn[]">
+  Array of turns (only populated when explicitly requested)
+</ResponseField>
+
+## Start a Thread
+
+Create a new conversation thread with optional configuration.
+
+### Method
+
+```
+thread/start
+```
+
+### Parameters
+
+<ParamField path="model" type="string">
+  Model to use (e.g., `gpt-5.1-codex`)
+</ParamField>
+
+<ParamField path="modelProvider" type="string">
+  Model provider (e.g., `openai`)
+</ParamField>
+
+<ParamField path="cwd" type="string">
+  Working directory for the thread
+</ParamField>
+
+<ParamField path="approvalPolicy" type="string">
+  Approval policy for commands and file changes
+  
+  - `never` - Never ask for approval
+  - `untrusted` - Ask for approval on untrusted operations
+  - `on-request` - Always ask for approval
+  - `on-failure` - Ask for approval on failures
+  - `reject` - Reject all approval requests
+</ParamField>
+
+<ParamField path="sandbox" type="string">
+  Sandbox mode
+  
+  - `read-only` - Read-only file system access
+  - `workspace-write` - Write access to workspace
+  - `danger-full-access` - Full system access
+</ParamField>
+
+<ParamField path="personality" type="string">
+  Agent personality
+  
+  - `friendly` - Friendly and conversational
+  - `pragmatic` - Direct and efficient
+  - `none` - No personality modifier
+</ParamField>
+
+<ParamField path="serviceName" type="string">
+  Optional metrics tag (`service_name`)
+</ParamField>
+
+### Response
+
+<ResponseField name="thread" type="Thread">
+  The created thread object
+</ResponseField>
+
+<ResponseField name="model" type="string">
+  Active model for the thread
+</ResponseField>
+
+<ResponseField name="modelProvider" type="string">
+  Active model provider
+</ResponseField>
+
+<ResponseField name="cwd" type="string">
+  Working directory
+</ResponseField>
+
+<ResponseField name="approvalPolicy" type="string">
+  Active approval policy
+</ResponseField>
+
+<ResponseField name="sandbox" type="SandboxPolicy">
+  Active sandbox policy
+</ResponseField>
+
+### Notifications
+
+<ResponseField name="thread/started" type="notification">
+  Emitted when the thread starts
+  
+  ```json
+  {
+    "method": "thread/started",
+    "params": {
+      "thread": { "id": "thr_123", ... }
+    }
+  }
+  ```
+</ResponseField>
+
+### Example
+
+<CodeGroup>
+```json Request
+{
+  "method": "thread/start",
+  "id": 10,
+  "params": {
+    "model": "gpt-5.1-codex",
+    "cwd": "/Users/me/project",
+    "approvalPolicy": "never",
+    "sandbox": "workspaceWrite",
+    "personality": "friendly"
+  }
+}
+```
+
+```json Response
+{
+  "id": 10,
+  "result": {
+    "thread": {
+      "id": "thr_123",
+      "preview": "",
+      "modelProvider": "openai",
+      "createdAt": 1730910000,
+      "status": { "type": "idle" }
+    },
+    "model": "gpt-5.1-codex",
+    "modelProvider": "openai",
+    "cwd": "/Users/me/project",
+    "approvalPolicy": "never",
+    "sandbox": {
+      "type": "workspaceWrite",
+      "writableRoots": ["/Users/me/project"],
+      "networkAccess": true
+    }
+  }
+}
+```
+
+```json Notification
+{
+  "method": "thread/started",
+  "params": {
+    "thread": {
+      "id": "thr_123",
+      "preview": "",
+      "modelProvider": "openai",
+      "createdAt": 1730910000
+    }
+  }
+}
+```
+</CodeGroup>
+
+## Resume a Thread
+
+Reopen an existing thread by ID to continue the conversation.
+
+### Method
+
+```
+thread/resume
+```
+
+### Parameters
+
+<ParamField path="threadId" type="string" required>
+  Thread ID to resume
+</ParamField>
+
+<ParamField path="personality" type="string">
+  Override personality for resumed thread
+</ParamField>
+
+### Response
+
+Same as `thread/start` response.
+
+### Example
+
+<CodeGroup>
+```json Request
+{
+  "method": "thread/resume",
+  "id": 11,
+  "params": {
+    "threadId": "thr_123",
+    "personality": "friendly"
+  }
+}
+```
+
+```json Response
+{
+  "id": 11,
+  "result": {
+    "thread": {
+      "id": "thr_123",
+      "preview": "Help me debug this issue",
+      "modelProvider": "openai",
+      "createdAt": 1730910000
+    },
+    "model": "gpt-5.1-codex",
+    "modelProvider": "openai"
+  }
+}
+```
+</CodeGroup>
+
+## Fork a Thread
+
+Branch from an existing thread into a new thread ID with copied history.
+
+### Method
+
+```
+thread/fork
+```
+
+### Parameters
+
+<ParamField path="threadId" type="string" required>
+  Thread ID to fork from
+</ParamField>
+
+### Response
+
+<ResponseField name="thread" type="Thread">
+  The newly created forked thread (with a new ID)
+</ResponseField>
+
+### Notifications
+
+<ResponseField name="thread/started" type="notification">
+  Emitted for the new forked thread
+</ResponseField>
+
+### Example
+
+<CodeGroup>
+```json Request
+{
+  "method": "thread/fork",
+  "id": 12,
+  "params": {
+    "threadId": "thr_123"
+  }
+}
+```
+
+```json Response
+{
+  "id": 12,
+  "result": {
+    "thread": {
+      "id": "thr_456",
+      "preview": "Help me debug this issue",
+      "modelProvider": "openai",
+      "createdAt": 1730910100
+    }
+  }
+}
+```
+
+```json Notification
+{
+  "method": "thread/started",
+  "params": {
+    "thread": { "id": "thr_456", ... }
+  }
+}
+```
+</CodeGroup>
+
+## List Threads
+
+Page through stored rollouts with optional filtering and pagination.
+
+### Method
+
+```
+thread/list
+```
+
+### Parameters
+
+<ParamField path="cursor" type="string">
+  Opaque pagination cursor from previous response
+</ParamField>
+
+<ParamField path="limit" type="number">
+  Page size (server defaults if unset)
+</ParamField>
+
+<ParamField path="sortKey" type="string">
+  Sort key: `created_at` (default) or `updated_at`
+</ParamField>
+
+<ParamField path="modelProviders" type="string[]">
+  Filter by model providers (empty/null includes all)
+</ParamField>
+
+<ParamField path="sourceKinds" type="string[]">
+  Filter by source kinds (`cli`, `vscode`, etc.)
+</ParamField>
+
+<ParamField path="archived" type="boolean">
+  When `true`, list archived threads only. When `false`/`null`, list non-archived threads
+</ParamField>
+
+<ParamField path="cwd" type="string">
+  Filter by exact working directory path
+</ParamField>
+
+<ParamField path="searchTerm" type="string">
+  Filter by substring match in thread title (case-sensitive)
+</ParamField>
+
+### Response
+
+<ResponseField name="data" type="Thread[]">
+  Array of thread objects
+</ResponseField>
+
+<ResponseField name="nextCursor" type="string | null">
+  Cursor for next page (null if no more pages)
+</ResponseField>
+
+### Example
+
+<CodeGroup>
+```json Request
+{
+  "method": "thread/list",
+  "id": 20,
+  "params": {
+    "cursor": null,
+    "limit": 25,
+    "sortKey": "created_at"
+  }
+}
+```
+
+```json Response
+{
+  "id": 20,
+  "result": {
+    "data": [
+      {
+        "id": "thr_a",
+        "preview": "Create a TUI",
+        "modelProvider": "openai",
+        "createdAt": 1730831111,
+        "updatedAt": 1730831111,
+        "status": { "type": "notLoaded" }
+      },
+      {
+        "id": "thr_b",
+        "preview": "Fix tests",
+        "modelProvider": "openai",
+        "createdAt": 1730750000,
+        "updatedAt": 1730750000,
+        "status": { "type": "notLoaded" }
+      }
+    ],
+    "nextCursor": "opaque-token-or-null"
+  }
+}
+```
+</CodeGroup>
+
+## Read a Thread
+
+Fetch a stored thread by ID without resuming it.
+
+### Method
+
+```
+thread/read
+```
+
+### Parameters
+
+<ParamField path="threadId" type="string" required>
+  Thread ID to read
+</ParamField>
+
+<ParamField path="includeTurns" type="boolean" default={false}>
+  When true, include turns and their items from rollout history
+</ParamField>
+
+### Response
+
+<ResponseField name="thread" type="Thread">
+  Thread object with `status` and optional `turns`
+</ResponseField>
+
+### Example
+
+<CodeGroup>
+```json Request (without turns)
+{
+  "method": "thread/read",
+  "id": 22,
+  "params": {
+    "threadId": "thr_123"
+  }
+}
+```
+
+```json Request (with turns)
+{
+  "method": "thread/read",
+  "id": 23,
+  "params": {
+    "threadId": "thr_123",
+    "includeTurns": true
+  }
+}
+```
+
+```json Response
+{
+  "id": 23,
+  "result": {
+    "thread": {
+      "id": "thr_123",
+      "status": { "type": "notLoaded" },
+      "turns": [
+        {
+          "id": "turn_1",
+          "items": [...],
+          "status": "completed"
+        }
+      ]
+    }
+  }
+}
+```
+</CodeGroup>
+
+## Archive a Thread
+
+Move a thread's rollout file into the archived directory.
+
+### Method
+
+```
+thread/archive
+```
+
+### Parameters
+
+<ParamField path="threadId" type="string" required>
+  Thread ID to archive
+</ParamField>
+
+### Response
+
+<ResponseField name="{}" type="object">
+  Empty object on success
+</ResponseField>
+
+### Notifications
+
+<ResponseField name="thread/archived" type="notification">
+  Emitted after successful archive
+  
+  ```json
+  {
+    "method": "thread/archived",
+    "params": { "threadId": "thr_b" }
+  }
+  ```
+</ResponseField>
+
+### Example
+
+<CodeGroup>
+```json Request
+{
+  "method": "thread/archive",
+  "id": 21,
+  "params": {
+    "threadId": "thr_b"
+  }
+}
+```
+
+```json Response
+{
+  "id": 21,
+  "result": {}
+}
+```
+
+```json Notification
+{
+  "method": "thread/archived",
+  "params": {
+    "threadId": "thr_b"
+  }
+}
+```
+</CodeGroup>
+
+## Other Thread Operations
+
+<CardGroup cols={2}>
+  <Card title="thread/unarchive" icon="box-open">
+    Move an archived thread back to sessions directory
+    
+    **Returns:** Restored `thread` object
+  </Card>
+  
+  <Card title="thread/name/set" icon="tag">
+    Set or update a thread's user-facing name
+    
+    **Returns:** Empty object `{}`
+  </Card>
+  
+  <Card title="thread/loaded/list" icon="memory">
+    List thread IDs currently loaded in memory
+    
+    **Returns:** `{ data: string[], nextCursor: string | null }`
+  </Card>
+  
+  <Card title="thread/unsubscribe" icon="bell-slash">
+    Unsubscribe from thread events (unloads if last subscriber)
+    
+    **Returns:** `{ status: "unsubscribed" | "notSubscribed" | "notLoaded" }`
+  </Card>
+  
+  <Card title="thread/rollback" icon="rotate-left">
+    Drop last N turns from thread history
+    
+    **Returns:** Updated `thread` with `turns` populated
+  </Card>
+  
+  <Card title="thread/compact/start" icon="compress">
+    Trigger conversation history compaction
+    
+    **Returns:** Empty object `{}` (progress via notifications)
+  </Card>
+</CardGroup>
+
+## Thread Notifications
+
+<ResponseField name="thread/started">
+  Emitted when a new thread starts or forks
+</ResponseField>
+
+<ResponseField name="thread/status/changed">
+  Emitted when a loaded thread's status changes
+  
+  ```json
+  {
+    "method": "thread/status/changed",
+    "params": {
+      "threadId": "thr_123",
+      "status": { "type": "active", "activeFlags": [] }
+    }
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="thread/archived">
+  Emitted after archiving a thread
+</ResponseField>
+
+<ResponseField name="thread/unarchived">
+  Emitted after unarchiving a thread
+</ResponseField>
+
+<ResponseField name="thread/closed">
+  Emitted when a thread is unloaded (no more subscribers)
+</ResponseField>
+
+<ResponseField name="thread/name/updated">
+  Emitted when a thread's name changes
+</ResponseField>
+
+<ResponseField name="thread/tokenUsage/updated">
+  Emitted with token usage updates during turns
+</ResponseField>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Turns" icon="rotate" href="/api/turns">
+    Send user input and start a turn
+  </Card>
+  <Card title="Items" icon="list" href="/api/items">
+    Understand turn items and streaming
+  </Card>
+</CardGroup>

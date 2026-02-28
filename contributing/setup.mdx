@@ -1,0 +1,180 @@
+---
+title: Development Setup
+description: Set up your development environment for contributing to Codex CLI
+---
+
+This guide covers the prerequisites and steps needed to set up a development environment for Codex CLI.
+
+## System Requirements
+
+<Info>
+  Ensure your system meets these minimum requirements before proceeding.
+</Info>
+
+| Requirement | Details |
+|------------|--------|
+| **Operating systems** | macOS 12+, Ubuntu 20.04+/Debian 10+, or Windows 11 via WSL2 |
+| **RAM** | 4 GB minimum (8 GB recommended) |
+| **Git** | 2.23+ (optional, recommended for built-in PR helpers) |
+
+## Rust Development Setup
+
+The primary Codex CLI implementation is written in Rust and lives in the `codex-rs/` directory.
+
+<Steps>
+  <Step title="Clone the Repository">
+    ```bash
+    git clone https://github.com/openai/codex.git
+    cd codex/codex-rs
+    ```
+  </Step>
+
+  <Step title="Install Rust Toolchain">
+    Install Rust and required components:
+    
+    ```bash
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    source "$HOME/.cargo/env"
+    rustup component add rustfmt
+    rustup component add clippy
+    ```
+  </Step>
+
+  <Step title="Install Helper Tools">
+    Install workspace helper tools:
+    
+    ```bash
+    # Required: justfile command runner
+    cargo install just
+    
+    # Optional: nextest for faster test runs
+    cargo install --locked cargo-nextest
+    
+    # Optional: insta for snapshot testing
+    cargo install cargo-insta
+    ```
+  </Step>
+
+  <Step title="Verify Installation">
+    Build Codex to verify your setup:
+    
+    ```bash
+    cargo build
+    ```
+    
+    <Tip>
+      If the build succeeds, you're ready to start developing!
+    </Tip>
+  </Step>
+</Steps>
+
+## TypeScript Development Setup
+
+<Warning>
+  The TypeScript implementation is **legacy** and has been superseded by the Rust implementation. This section is provided for reference only.
+</Warning>
+
+The legacy TypeScript CLI lives in the `codex-cli/` directory.
+
+<Steps>
+  <Step title="Navigate to CLI Directory">
+    ```bash
+    cd codex/codex-cli
+    ```
+  </Step>
+
+  <Step title="Enable Corepack">
+    ```bash
+    corepack enable
+    ```
+  </Step>
+
+  <Step title="Install Dependencies">
+    ```bash
+    pnpm install
+    ```
+  </Step>
+
+  <Step title="Linux-Only: Download Sandboxing Binaries">
+    On Linux, download prebuilt sandboxing binaries (requires `gh` and `zstd`):
+    
+    ```bash
+    ./scripts/install_native_deps.sh
+    ```
+  </Step>
+</Steps>
+
+## DotSlash (Optional)
+
+GitHub Releases contain a [DotSlash](https://dotslash-cli.com/) file for the Codex CLI named `codex`. Using a DotSlash file makes it possible to commit a lightweight reference to source control to ensure all contributors use the same version of an executable, regardless of platform.
+
+## Alternative: Nix Flake Development
+
+<Accordion title="Using Nix for reproducible builds">
+  **Prerequisite:** Nix >= 2.4 with flakes enabled (`experimental-features = nix-command flakes` in `~/.config/nix/nix.conf`).
+
+  ### Enter Development Shell
+
+  ```bash
+  # For Rust implementation
+  nix develop .#codex-rs
+  
+  # For TypeScript implementation
+  nix develop .#codex-cli
+  ```
+
+  This shell includes Node.js (for TypeScript) or Rust toolchain, installs dependencies, builds the CLI, and provides a `codex` command alias.
+
+  ### Build Directly
+
+  ```bash
+  # Build Rust implementation
+  nix build .#codex-rs
+  ./result/bin/codex --help
+  
+  # Build TypeScript implementation
+  nix build .#codex-cli
+  ./result/bin/codex --help
+  ```
+
+  ### Run via Flake App
+
+  ```bash
+  # Run Rust implementation
+  nix run .#codex-rs
+  
+  # Run TypeScript implementation
+  nix run .#codex-cli
+  ```
+
+  ### Use with direnv
+
+  If you have `direnv` installed, automatically enter the Nix shell when you `cd` into the project:
+
+  ```bash
+  cd codex-rs
+  echo "use flake ../flake.nix#codex-rs" >> .envrc && direnv allow
+  
+  cd ../codex-cli
+  echo "use flake ../flake.nix#codex-cli" >> .envrc && direnv allow
+  ```
+</Accordion>
+
+## Next Steps
+
+Now that your environment is set up:
+
+<CardGroup cols={2}>
+  <Card title="Building" icon="hammer" href="/contributing/building">
+    Learn how to build the project
+  </Card>
+  <Card title="Testing" icon="flask" href="/contributing/testing">
+    Run tests to verify your setup
+  </Card>
+  <Card title="Guidelines" icon="book" href="/contributing/guidelines">
+    Review contribution guidelines
+  </Card>
+  <Card title="Configuration" icon="gear" href="/configuration/overview">
+    Explore configuration options
+  </Card>
+</CardGroup>

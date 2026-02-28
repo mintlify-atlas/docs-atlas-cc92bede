@@ -1,0 +1,375 @@
+---
+title: Authentication
+description: Sign in with ChatGPT or configure API key authentication for Codex CLI
+---
+
+# Authentication
+
+Codex CLI supports multiple authentication methods to suit your workflow. You can sign in with your ChatGPT account (recommended) or use an OpenAI API key.
+
+## Authentication methods
+
+Codex CLI offers three authentication methods:
+
+1. **ChatGPT login** (recommended): Sign in with your ChatGPT Plus, Pro, Team, Edu, or Enterprise account
+2. **Device code flow**: For remote or headless machines
+3. **API key**: For users with OpenAI API access
+
+<Note>
+We recommend using ChatGPT login to use Codex as part of your ChatGPT plan. [Learn more about what's included](https://help.openai.com/en/articles/11369540-codex-in-chatgpt).
+</Note>
+
+## Sign in with ChatGPT
+
+This is the recommended authentication method. It allows you to use Codex with your ChatGPT Plus, Pro, Team, Edu, or Enterprise plan.
+
+<Steps>
+  <Step title="Run the login command">
+    Start the authentication process:
+
+    ```bash
+    codex login
+    ```
+
+    Or if you're running Codex for the first time:
+
+    ```bash
+    codex
+    ```
+
+    Then select **Sign in with ChatGPT** from the prompt.
+  </Step>
+
+  <Step title="Authenticate in browser">
+    Codex will:
+    1. Start a local login server on `http://localhost` (random port)
+    2. Automatically open your browser to the authentication page
+    3. Prompt you to sign in with your ChatGPT credentials
+
+    You'll see output like:
+
+    ```
+    Starting local login server on http://localhost:3000.
+    If your browser did not open, navigate to this URL to authenticate:
+
+    https://auth.openai.com/authorize?...
+
+    On a remote or headless machine? Use `codex login --device-auth` instead.
+    ```
+  </Step>
+
+  <Step title="Complete authentication">
+    After signing in through the browser:
+    1. Authorize Codex to access your ChatGPT account
+    2. You'll be redirected back to a success page
+    3. Return to your terminal
+
+    You'll see:
+
+    ```
+    Successfully logged in
+    ```
+  </Step>
+
+  <Step title="Start using Codex">
+    You're now authenticated and can start using Codex:
+
+    ```bash
+    codex "explain this codebase"
+    ```
+  </Step>
+</Steps>
+
+## Device code authentication
+
+Use device code flow when you're on a remote machine, in SSH, or in a headless environment where opening a browser isn't possible.
+
+<Steps>
+  <Step title="Run device code login">
+    Start the device code authentication flow:
+
+    ```bash
+    codex login --device-auth
+    ```
+  </Step>
+
+  <Step title="Open the URL on another device">
+    Codex will display a URL and a code:
+
+    ```
+    Visit https://auth.openai.com/activate
+    Enter code: ABCD-EFGH
+    ```
+
+    Open this URL on any device with a browser (your phone, laptop, etc.).
+  </Step>
+
+  <Step title="Enter the code">
+    On the browser:
+    1. Navigate to the URL
+    2. Enter the displayed code
+    3. Sign in with your ChatGPT credentials
+    4. Authorize the application
+  </Step>
+
+  <Step title="Wait for confirmation">
+    Return to your terminal. Once you complete authentication in the browser, you'll see:
+
+    ```
+    Successfully logged in
+    ```
+
+    You can now use Codex on the remote machine.
+  </Step>
+</Steps>
+
+## API key authentication
+
+If you have an OpenAI API key, you can authenticate using the API key method. This requires [additional setup](https://platform.openai.com/api-keys) but gives you direct API access.
+
+<Warning>
+Using an API key with Codex will incur costs based on your API usage. ChatGPT login is included in your ChatGPT plan at no additional cost.
+</Warning>
+
+### Using the login command
+
+<Steps>
+  <Step title="Pipe your API key to the login command">
+    Codex accepts API keys via stdin for security:
+
+    ```bash
+    printenv OPENAI_API_KEY | codex login --with-api-key
+    ```
+
+    Or:
+
+    ```bash
+    echo "sk-proj-..." | codex login --with-api-key
+    ```
+
+    <Note>
+    For security reasons, Codex does not accept API keys as command-line arguments. Always pipe the key via stdin.
+    </Note>
+  </Step>
+
+  <Step title="Verify authentication">
+    After successful authentication, you'll see:
+
+    ```
+    Reading API key from stdin...
+    Successfully logged in
+    ```
+  </Step>
+</Steps>
+
+### Using environment variables
+
+Alternatively, you can set your API key as an environment variable:
+
+<Steps>
+  <Step title="Export the API key">
+    Set the `OPENAI_API_KEY` environment variable:
+
+    ```bash
+    export OPENAI_API_KEY="sk-proj-..."
+    ```
+
+    <Note>
+    This sets the key only for your current terminal session. To make it permanent, add the export line to your shell configuration file (e.g., `~/.zshrc`, `~/.bashrc`).
+    </Note>
+  </Step>
+
+  <Step title="Run Codex">
+    Run Codex normally. It will automatically use the environment variable:
+
+    ```bash
+    codex "explain this code"
+    ```
+  </Step>
+</Steps>
+
+### Using a .env file
+
+For project-specific API keys, create a `.env` file in your project root:
+
+<Steps>
+  <Step title="Create a .env file">
+    Create a `.env` file in your project directory:
+
+    ```bash .env
+    OPENAI_API_KEY=sk-proj-...
+    ```
+  </Step>
+
+  <Step title="Run Codex in the project directory">
+    Codex will automatically load the API key from the `.env` file:
+
+    ```bash
+    codex "refactor this function"
+    ```
+
+    The CLI automatically loads environment variables from `.env` using `dotenv/config`.
+  </Step>
+</Steps>
+
+<Warning>
+**Security best practice:** Never commit your `.env` file to version control. Add it to `.gitignore`:
+
+```bash .gitignore
+.env
+```
+</Warning>
+
+## Using other AI providers
+
+Codex supports other AI providers that implement the OpenAI Chat Completions API. Use the `--provider` flag or configure it in your config file.
+
+### Supported providers
+
+- `openai` (default)
+- `openrouter`
+- `azure`
+- `gemini`
+- `ollama`
+- `mistral`
+- `deepseek`
+- `xai`
+- `groq`
+- `arceeai`
+- Any provider compatible with the OpenAI API
+
+### Configure a custom provider
+
+<Steps>
+  <Step title="Set the API key for your provider">
+    Export the API key for your chosen provider:
+
+    ```bash
+    export AZURE_OPENAI_API_KEY="your-azure-key"
+    ```
+
+    Or for a custom provider:
+
+    ```bash
+    export MYPROVIDER_API_KEY="your-key"
+    export MYPROVIDER_BASE_URL="https://api.myprovider.com/v1"
+    ```
+  </Step>
+
+  <Step title="Run Codex with the provider flag">
+    Specify the provider when running Codex:
+
+    ```bash
+    codex --provider azure "explain this code"
+    ```
+
+    Or configure it permanently in `~/.codex/config.yaml` (see [Configuration](/configuration)).
+  </Step>
+</Steps>
+
+## Check login status
+
+To verify your current authentication status:
+
+```bash
+codex login status
+```
+
+This will show:
+- **ChatGPT login**: `Logged in using ChatGPT`
+- **API key**: `Logged in using an API key - sk-proj-***ABCDE` (key is partially masked)
+- **Not logged in**: `Not logged in`
+
+## Logout
+
+To remove stored authentication credentials:
+
+```bash
+codex logout
+```
+
+You'll see:
+
+```
+Successfully logged out
+```
+
+Your credentials are removed from `~/.codex/`. You'll need to authenticate again to use Codex.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Browser doesn't open during login">
+    If the browser doesn't open automatically:
+
+    1. Copy the URL displayed in the terminal
+    2. Manually paste it into your browser
+    3. Complete authentication
+
+    Or use device code authentication:
+
+    ```bash
+    codex login --device-auth
+    ```
+  </Accordion>
+
+  <Accordion title="API key not working">
+    If you're using an API key and Codex isn't authenticating:
+
+    1. Verify the key is correct:
+       ```bash
+       printenv OPENAI_API_KEY
+       ```
+
+    2. Check that the key hasn't expired on the [OpenAI platform](https://platform.openai.com/api-keys)
+
+    3. Ensure you're using the correct provider:
+       ```bash
+       codex --provider openai "test"
+       ```
+  </Accordion>
+
+  <Accordion title="Permission denied errors">
+    If you see permission errors with stored credentials:
+
+    1. Check the permissions on `~/.codex/`:
+       ```bash
+       ls -la ~/.codex/
+       ```
+
+    2. Fix permissions if needed:
+       ```bash
+       chmod 700 ~/.codex/
+       chmod 600 ~/.codex/auth.json
+       ```
+  </Accordion>
+
+  <Accordion title="Error on remote/SSH sessions">
+    If ChatGPT login fails on a remote machine:
+
+    Use device code authentication instead:
+
+    ```bash
+    codex login --device-auth
+    ```
+
+    This works on headless systems and in SSH sessions.
+  </Accordion>
+</AccordionGroup>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart guide" icon="bolt" href="/quickstart">
+    Run your first commands with Codex
+  </Card>
+  <Card title="Configuration" icon="gear" href="/configuration">
+    Customize Codex with config files
+  </Card>
+  <Card title="CLI reference" icon="terminal" href="/cli-reference">
+    Explore all available commands
+  </Card>
+  <Card title="Security model" icon="shield" href="/security">
+    Learn about sandboxing and permissions
+  </Card>
+</CardGroup>

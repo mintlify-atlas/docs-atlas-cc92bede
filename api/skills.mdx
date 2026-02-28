@@ -1,0 +1,344 @@
+---
+title: 'Skills'
+description: 'Skill discovery and invocation'
+---
+
+Skills are specialized capabilities that extend Codex's functionality. They can be user-defined, project-scoped, or shared across workspaces.
+
+## List Skills
+
+Fetch available skills for one or more working directories.
+
+### Method
+
+```
+skills/list
+```
+
+### Parameters
+
+<ParamField path="cwds" type="string[]" default={[]}>
+  Working directories to scan for skills (defaults to current session cwd if empty)
+</ParamField>
+
+<ParamField path="forceReload" type="boolean" default={false}>
+  Bypass the skills cache and re-scan from disk
+</ParamField>
+
+<ParamField path="perCwdExtraUserRoots" type="object[]">
+  Additional roots to scan as user-scoped skills for specific cwds
+  
+  <Expandable title="perCwdExtraUserRoots entry">
+    <ParamField path="cwd" type="string" required>
+      Working directory path
+    </ParamField>
+    
+    <ParamField path="extraUserRoots" type="string[]" required>
+      Absolute paths to scan as user scope
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Response
+
+<ResponseField name="data" type="SkillsListEntry[]">
+  Array of skills grouped by working directory
+  
+  <Expandable title="SkillsListEntry">
+    <ResponseField name="cwd" type="string">
+      Working directory
+    </ResponseField>
+    
+    <ResponseField name="skills" type="SkillMetadata[]">
+      Array of skill metadata
+    </ResponseField>
+    
+    <ResponseField name="errors" type="SkillErrorInfo[]">
+      Skill loading errors
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Skill Object
+
+<ResponseField name="name" type="string">
+  Skill identifier (e.g., `skill-creator`)
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Brief skill description
+</ResponseField>
+
+<ResponseField name="enabled" type="boolean">
+  Whether the skill is enabled in config
+</ResponseField>
+
+<ResponseField name="interface" type="SkillInterface">
+  UI metadata for the skill
+  
+  <Expandable title="SkillInterface">
+    <ResponseField name="displayName" type="string">
+      Human-readable skill name
+    </ResponseField>
+    
+    <ResponseField name="shortDescription" type="string">
+      Short description for UI
+    </ResponseField>
+    
+    <ResponseField name="iconSmall" type="string">
+      Small icon filename
+    </ResponseField>
+    
+    <ResponseField name="iconLarge" type="string">
+      Large icon filename
+    </ResponseField>
+    
+    <ResponseField name="brandColor" type="string">
+      Hex color code (e.g., `#111111`)
+    </ResponseField>
+    
+    <ResponseField name="defaultPrompt" type="string">
+      Default prompt text
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example
+
+<CodeGroup>
+```json Request
+{
+  "method": "skills/list",
+  "id": 25,
+  "params": {
+    "cwds": ["/Users/me/project", "/Users/me/other-project"],
+    "forceReload": true
+  }
+}
+```
+
+```json Response
+{
+  "id": 25,
+  "result": {
+    "data": [
+      {
+        "cwd": "/Users/me/project",
+        "skills": [
+          {
+            "name": "skill-creator",
+            "description": "Create or update a Codex skill",
+            "enabled": true,
+            "interface": {
+              "displayName": "Skill Creator",
+              "shortDescription": "Create or update a Codex skill",
+              "iconSmall": "icon.svg",
+              "iconLarge": "icon-large.svg",
+              "brandColor": "#111111",
+              "defaultPrompt": "Add a new skill for triaging flaky CI."
+            }
+          },
+          {
+            "name": "code-review",
+            "description": "Perform automated code review",
+            "enabled": true,
+            "interface": {
+              "displayName": "Code Review",
+              "shortDescription": "Automated code review",
+              "iconSmall": "review.svg",
+              "iconLarge": "review-large.svg",
+              "brandColor": "#4A90E2",
+              "defaultPrompt": "Review my recent changes"
+            }
+          }
+        ],
+        "errors": []
+      },
+      {
+        "cwd": "/Users/me/other-project",
+        "skills": [],
+        "errors": []
+      }
+    ]
+  }
+}
+```
+</CodeGroup>
+
+## Invoking a Skill
+
+To invoke a skill, include `$<skill-name>` in the text input and add a `skill` input item.
+
+<CodeGroup>
+```json turn/start with skill
+{
+  "method": "turn/start",
+  "id": 101,
+  "params": {
+    "threadId": "thr_123",
+    "input": [
+      {
+        "type": "text",
+        "text": "$skill-creator Add a new skill for triaging flaky CI and include step-by-step usage."
+      },
+      {
+        "type": "skill",
+        "name": "skill-creator",
+        "path": "/Users/me/.codex/skills/skill-creator/SKILL.md"
+      }
+    ]
+  }
+}
+```
+
+```json Response
+{
+  "id": 101,
+  "result": {
+    "turn": {
+      "id": "turn_500",
+      "status": "inProgress",
+      "items": [],
+      "error": null
+    }
+  }
+}
+```
+</CodeGroup>
+
+<Note>
+If you omit the `skill` input item, the model will still parse `$<skill-name>` and try to locate the skill, but this adds latency. Always include the `skill` item when possible.
+</Note>
+
+## Enable or Disable a Skill
+
+Use `skills/config/write` to enable or disable a skill by path.
+
+### Method
+
+```
+skills/config/write
+```
+
+### Parameters
+
+<ParamField path="path" type="string" required>
+  Absolute path to the skill's SKILL.md file
+</ParamField>
+
+<ParamField path="enabled" type="boolean" required>
+  Whether the skill should be enabled
+</ParamField>
+
+### Response
+
+<ResponseField name="{}" type="object">
+  Empty object on success
+</ResponseField>
+
+### Example
+
+<CodeGroup>
+```json Request
+{
+  "method": "skills/config/write",
+  "id": 26,
+  "params": {
+    "path": "/Users/me/.codex/skills/skill-creator/SKILL.md",
+    "enabled": false
+  }
+}
+```
+
+```json Response
+{
+  "id": 26,
+  "result": {}
+}
+```
+</CodeGroup>
+
+## Skill Scopes
+
+Skills are discovered from multiple scopes:
+
+<CardGroup cols={3}>
+  <Card title="Built-in" icon="box">
+    Bundled with Codex
+    
+    **Location:** Codex installation directory
+  </Card>
+  
+  <Card title="User" icon="user">
+    User-level skills
+    
+    **Location:** `~/.codex/skills/`
+  </Card>
+  
+  <Card title="Project" icon="folder-tree">
+    Project-specific skills
+    
+    **Location:** `{cwd}/.codex/skills/`
+  </Card>
+</CardGroup>
+
+## Skill Structure
+
+A skill is defined by a `SKILL.md` file containing:
+
+```markdown
+# Skill Name
+
+Brief description of what the skill does.
+
+## Instructions
+
+Detailed instructions for the agent on how to use this skill.
+
+## Examples
+
+Example usage scenarios.
+
+## Dependencies
+
+Required tools, packages, or configurations.
+```
+
+Optional companion files:
+
+- `icon.svg` - Small icon
+- `icon-large.svg` - Large icon
+- `config.toml` - Skill configuration (display name, brand color, default prompt)
+
+## Remote Skills (Under Development)
+
+<Warning>
+The remote skills API is under development. Do not call from production clients yet.
+</Warning>
+
+### List Remote Skills
+
+```
+skills/remote/list
+```
+
+List public remote skills from the skill directory.
+
+### Export Remote Skill
+
+```
+skills/remote/export
+```
+
+Download a remote skill by `hazelnutId` into the user's `skills` directory.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Apps" icon="plug" href="/api/apps">
+    Discover and use connector apps
+  </Card>
+  <Card title="Turns" icon="rotate" href="/api/turns">
+    Start a turn with skill invocation
+  </Card>
+</CardGroup>

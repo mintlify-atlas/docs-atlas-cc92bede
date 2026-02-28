@@ -1,0 +1,205 @@
+---
+title: 'Initialization'
+description: 'Initialize the App Server connection'
+---
+
+Clients must send a single `initialize` request per transport connection before invoking any other method, then acknowledge with an `initialized` notification.
+
+## Initialization Handshake
+
+The server returns the user agent string it will present to upstream services. Subsequent requests issued before initialization receive a `"Not initialized"` error, and repeated `initialize` calls on the same connection receive an `"Already initialized"` error.
+
+<Steps>
+  <Step title="Send initialize request">
+    Send an `initialize` request with your client metadata.
+  </Step>
+  <Step title="Receive response">
+    The server responds with initialization details.
+  </Step>
+  <Step title="Send initialized notification">
+    Acknowledge with an `initialized` notification.
+  </Step>
+</Steps>
+
+## Request
+
+### Method
+
+```
+initialize
+```
+
+### Parameters
+
+<ParamField path="clientInfo" type="object" required>
+  Client identification information
+  
+  <Expandable title="properties">
+    <ParamField path="name" type="string" required>
+      Client identifier (used for OpenAI Compliance Logs Platform)
+      
+      <Warning>
+      If you are developing a new Codex integration for enterprise use, contact us to get it added to the known clients list.
+      
+      See: https://chatgpt.com/admin/api-reference#tag/Logs:-Codex
+      </Warning>
+    </ParamField>
+    
+    <ParamField path="title" type="string">
+      Human-readable client name
+    </ParamField>
+    
+    <ParamField path="version" type="string" required>
+      Client version (semantic versioning recommended)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="capabilities" type="object">
+  Client capability flags
+  
+  <Expandable title="properties">
+    <ParamField path="experimentalApi" type="boolean" default={false}>
+      Enable experimental API methods and fields
+    </ParamField>
+    
+    <ParamField path="optOutNotificationMethods" type="string[]">
+      List of exact notification method names to suppress for this connection
+      
+      - Matching is exact (no wildcards/prefixes)
+      - Unknown method names are accepted and ignored
+      - Example: `["codex/event/session_configured", "item/agentMessage/delta"]`
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Response
+
+<ResponseField name="userAgent" type="string">
+  User agent string the server will present to upstream services
+</ResponseField>
+
+## Examples
+
+### Basic Initialization
+
+<CodeGroup>
+```json Request
+{
+  "method": "initialize",
+  "id": 0,
+  "params": {
+    "clientInfo": {
+      "name": "codex_vscode",
+      "title": "Codex VS Code Extension",
+      "version": "0.1.0"
+    }
+  }
+}
+```
+
+```json Response
+{
+  "id": 0,
+  "result": {
+    "userAgent": "codex/1.0.0"
+  }
+}
+```
+
+```json Notification (client sends)
+{
+  "method": "initialized"
+}
+```
+</CodeGroup>
+
+### With Experimental API & Notification Opt-out
+
+<CodeGroup>
+```json Request
+{
+  "method": "initialize",
+  "id": 1,
+  "params": {
+    "clientInfo": {
+      "name": "my_client",
+      "title": "My Client",
+      "version": "0.1.0"
+    },
+    "capabilities": {
+      "experimentalApi": true,
+      "optOutNotificationMethods": [
+        "codex/event/session_configured",
+        "item/agentMessage/delta"
+      ]
+    }
+  }
+}
+```
+
+```json Response
+{
+  "id": 1,
+  "result": {
+    "userAgent": "codex/1.0.0"
+  }
+}
+```
+</CodeGroup>
+
+## Experimental API
+
+Some app-server methods and fields are gated behind an experimental capability with no backwards-compatible guarantees.
+
+<Note>
+**Stable surface only (default):** No opt-in, no experimental methods/fields exposed.
+
+**Experimental surface:** Set `capabilities.experimentalApi: true` during initialization.
+</Note>
+
+### Without Opt-in
+
+If a request uses an experimental method or field without opting in, the server rejects it with a JSON-RPC error:
+
+```
+<descriptor> requires experimentalApi capability
+```
+
+Examples:
+- `mock/experimentalMethod` (method-level gate)
+- `thread/start.mockExperimentalField` (field-level gate)
+
+### Schema Generation
+
+Generate stable vs experimental schemas:
+
+```bash
+# Stable-only output (default)
+codex app-server generate-ts --out DIR
+codex app-server generate-json-schema --out DIR
+
+# Include experimental API surface
+codex app-server generate-ts --out DIR --experimental
+codex app-server generate-json-schema --out DIR --experimental
+```
+
+## Notification Opt-out
+
+Clients can suppress specific notifications per connection by sending exact method names in `capabilities.optOutNotificationMethods`.
+
+**Behavior:**
+- Exact-match only: `item/agentMessage/delta` suppresses only that method
+- Unknown method names are ignored
+- Applies to both legacy (`codex/event/*`) and v2 (`thread/*`, `turn/*`, `item/*`) notifications
+- Does not apply to requests/responses/errors
+
+**Examples:**
+- Opt out of legacy session setup event: `codex/event/session_configured`
+- Opt out of streamed agent text deltas: `item/agentMessage/delta`
+
+## Next Steps
+
+<Card title="Threads" icon="comments" href="/api/threads">
+  Start or resume a conversation thread
+</Card>

@@ -1,0 +1,261 @@
+---
+title: codex exec
+description: Run Codex non-interactively for automation and CI/CD
+---
+
+## Syntax
+
+```bash
+codex exec [OPTIONS] [PROMPT]
+```
+
+## Description
+
+The `exec` command runs Codex non-interactively, making it ideal for automation, CI/CD pipelines, and scripting. It reads a prompt, executes the task, and exits when complete.
+
+<Note>
+Use `codex exec` when you need:
+- Headless operation (no interactive TUI)
+- Structured JSON output
+- Automation in scripts or CI/CD
+- Output piped to other commands
+</Note>
+
+## Usage
+
+### Basic Execution
+
+```bash
+codex exec "explain this codebase"
+codex exec "run tests and fix any failures"
+```
+
+### From stdin
+
+Read the prompt from stdin:
+
+```bash
+echo "add error handling" | codex exec
+codex exec < prompt.txt
+codex exec -  # Force reading from stdin
+```
+
+### JSON Output
+
+Get structured JSON events:
+
+```bash
+codex exec --json "list all API endpoints" > output.jsonl
+codex exec --json "analyze code quality" | jq '.msg'
+```
+
+## Options
+
+<ParamField path="PROMPT" type="string">
+  Prompt to send to Codex. Use `-` to read from stdin.
+</ParamField>
+
+### Output
+
+<ParamField path="--json" type="boolean">
+  Output events as JSON Lines (JSONL). Each line is a valid JSON object representing an event.
+</ParamField>
+
+<ParamField path="-o, --output-last-message" type="path">
+  Write the final message to a file. Useful for capturing Codex's response.
+</ParamField>
+
+<ParamField path="--output-schema" type="path">
+  Path to a JSON schema file. Codex will format its final output to match this schema.
+</ParamField>
+
+### Model & Provider
+
+<ParamField path="-m, --model" type="string">
+  AI model to use (e.g., `gpt-4.1`, `o4-mini`).
+</ParamField>
+
+<ParamField path="--oss" type="boolean">
+  Use open-source/local model provider.
+</ParamField>
+
+<ParamField path="--local-provider" type="string">
+  OSS provider: `ollama`, `lmstudio`.
+</ParamField>
+
+### Approval & Sandbox
+
+<ParamField path="--full-auto" type="boolean">
+  Run in full-auto mode. No approvals required.
+</ParamField>
+
+<ParamField path="--sandbox" type="string">
+  Sandbox mode: `workspace-write`, `workspace-read-network-write`, `read-only`, `danger-full-access`.
+</ParamField>
+
+<ParamField path="--dangerously-bypass-approvals-and-sandbox" type="boolean">
+  Skip all approvals and sandbox restrictions. Use with extreme caution.
+</ParamField>
+
+### Input
+
+<ParamField path="-i, --images" type="string">
+  Comma-separated list of image paths.
+</ParamField>
+
+<ParamField path="--add-dir" type="path">
+  Additional writable directories (repeatable).
+</ParamField>
+
+### Progress Indicators
+
+<ParamField path="--color" type="string">
+  Control colored output: `auto`, `always`, `never`.
+</ParamField>
+
+<ParamField path="--progress-cursor" type="boolean">
+  Show progress indicator. Auto-detected by default.
+</ParamField>
+
+### Session
+
+<ParamField path="-C, --cwd" type="path">
+  Working directory.
+</ParamField>
+
+<ParamField path="--ephemeral" type="boolean">
+  Don't save session to history.
+</ParamField>
+
+<ParamField path="--skip-git-repo-check" type="boolean">
+  Skip Git repository check.
+</ParamField>
+
+## Examples
+
+### CI/CD Integration
+
+```bash
+# GitHub Actions
+- name: Update changelog
+  run: |
+    codex exec --full-auto "update CHANGELOG.md for v2.0.0"
+
+# GitLab CI
+script:
+  - codex exec "run security scan and create report"
+```
+
+### JSON Output for Processing
+
+```bash
+# Get JSON events
+codex exec --json "analyze code coverage" > coverage-analysis.jsonl
+
+# Extract specific fields
+codex exec --json "list dependencies" | jq -r 'select(.msg.type=="text") | .msg.content'
+
+# Save final message
+codex exec -o response.txt "summarize recent changes"
+```
+
+### Structured Output Schema
+
+```bash
+# Define schema
+cat > schema.json <<EOF
+{
+  "type": "object",
+  "properties": {
+    "endpoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string" },
+          "method": { "type": "string" }
+        }
+      }
+    }
+  }
+}
+EOF
+
+# Run with schema
+codex exec --output-schema schema.json "list all API endpoints" | jq .
+```
+
+### Automation Scripts
+
+```bash
+#!/bin/bash
+# daily-tasks.sh
+
+# Update documentation
+codex exec "update API documentation based on recent changes"
+
+# Run tests
+codex exec "run test suite and report failures" -o test-results.txt
+
+# Check code quality
+codex exec --json "analyze code quality" > quality-report.jsonl
+```
+
+### Reading from stdin
+
+```bash
+# From echo
+echo "add logging to main.ts" | codex exec
+
+# From file
+codex exec < task-description.txt
+
+# From here-doc
+codex exec <<EOF
+Refactor the authentication module:
+1. Add rate limiting
+2. Improve error handling
+3. Add unit tests
+EOF
+```
+
+### Different Models
+
+```bash
+# Use GPT-4.1 for complex tasks
+codex exec -m gpt-4.1 "design microservices architecture"
+
+# Use local Ollama for quick tasks
+codex exec --oss --local-provider ollama "format this code"
+```
+
+## JSON Output Format
+
+When using `--json`, each line is a JSON object with this structure:
+
+```json
+{
+  "msg": {
+    "type": "text",
+    "content": "Processing your request..."
+  },
+  "timestamp": "2026-02-28T10:30:00Z"
+}
+```
+
+Common event types:
+- `text` - Text messages from Codex
+- `exec_approval_request` - Requesting approval to run a command
+- `apply_patch_approval_request` - Requesting approval to modify files
+- `turn_complete` - Task completed
+- `error` - Error occurred
+
+## Exit Codes
+
+- `0` - Success
+- `1` - Error occurred (failed commands, API errors, etc.)
+
+## Related Commands
+
+- [`codex`](/cli/codex) - Interactive mode
+- [`codex review`](/cli/review) - Code review mode

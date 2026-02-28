@@ -1,0 +1,300 @@
+---
+title: Interactive mode
+description: Use the Codex TUI for real-time AI assistance
+---
+
+Interactive mode provides a rich terminal user interface (TUI) for working with Codex. Launch it by running `codex` with or without an initial prompt.
+
+## Starting interactive mode
+
+<CodeGroup>
+```bash Start with prompt
+codex "add unit tests for the auth module"
+```
+
+```bash Start without prompt
+codex
+```
+
+```bash With images
+codex --image screenshot.png "explain this error"
+```
+
+```bash With configuration
+codex --sandbox workspace-write --model gpt-5.2-codex "run the test suite"
+```
+</CodeGroup>
+
+## TUI overview
+
+The interactive interface consists of several key areas:
+
+### Main conversation view
+
+The primary area displays:
+- **User messages** - Your prompts and inputs
+- **Agent messages** - Responses from Codex
+- **Command execution** - Shell commands with live output
+- **File changes** - Diffs and modifications
+- **Reasoning** - Internal agent reasoning (when available)
+
+Content streams in real-time as the agent works, providing immediate feedback.
+
+### Status bar
+
+The bottom status bar shows:
+- Current model and provider
+- Sandbox mode and approval policy
+- Working directory
+- Network status
+- Token usage for the current turn
+
+### Input composer
+
+The input area at the bottom allows you to:
+- Type multi-line messages (Shift+Enter for newlines)
+- Attach images with `--image` or drag-and-drop
+- Invoke skills with `$skill-name`
+- Reference apps with `$app-name`
+
+## Keyboard shortcuts
+
+### Navigation
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+C` | Cancel current operation or exit |
+| `Ctrl+D` | Exit Codex (when input is empty) |
+| `Ctrl+L` | Clear screen |
+| `↑` / `↓` | Navigate command history |
+| `PgUp` / `PgDn` | Scroll conversation |
+| `Home` / `End` | Jump to start/end of input |
+
+### Input control
+
+| Shortcut | Action |
+|----------|--------|
+| `Enter` | Send message |
+| `Shift+Enter` | Insert newline |
+| `Ctrl+U` | Clear current line |
+| `Ctrl+W` | Delete word backward |
+| `Tab` | Autocomplete (when available) |
+
+### Advanced
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+R` | Resume previous session |
+| `Ctrl+P` | Open command palette (if enabled) |
+| `Esc` | Cancel current input |
+
+<Note>
+  Keyboard shortcuts may vary slightly by terminal emulator and operating system.
+</Note>
+
+## Features
+
+### Live streaming output
+
+Commands and agent messages stream in real-time. You'll see:
+- Text appearing character-by-character
+- Command output as it's generated
+- Diffs as files are modified
+- Progress indicators for long operations
+
+### Approval prompts
+
+When the agent needs to perform sensitive operations, you'll see an inline approval prompt:
+
+```
+┌─ Command Approval Required ────────────────────────────────┐
+│ codex wants to run:                                        │
+│   npm install express                                      │
+│                                                            │
+│ Working directory: /Users/me/project                       │
+│                                                            │
+│ [a] Accept once                                            │
+│ [s] Accept for session                                     │
+│ [p] Accept and add to policy                               │
+│ [d] Decline                                                │
+│ [c] Cancel turn                                            │
+└────────────────────────────────────────────────────────────┘
+```
+
+<Steps>
+  <Step title="Review the command">
+    Carefully read what the agent wants to execute
+  </Step>
+  <Step title="Choose approval level">
+    Select how broadly to approve the operation
+  </Step>
+  <Step title="Monitor execution">
+    Watch the command output stream in real-time
+  </Step>
+</Steps>
+
+### Command history
+
+Use the up/down arrow keys to cycle through:
+- Previous prompts in this session
+- Previously executed commands
+- Resumed conversation inputs
+
+History persists across sessions.
+
+### Session management
+
+Interactive mode automatically:
+- Saves your conversation to disk
+- Maintains context across turns
+- Allows resuming from where you left off
+
+Threads are stored in `~/.codex/sessions/` as JSONL files.
+
+## Display options
+
+### Alternate screen mode
+
+By default, Codex uses the alternate screen buffer (like `vim` or `less`). This:
+- Preserves your terminal scrollback
+- Cleans up when you exit
+- Works well in most terminals
+
+To disable alternate screen mode:
+
+```bash
+codex --no-alt-screen
+```
+
+This is useful for terminal multiplexers like Zellij that strictly follow xterm specs.
+
+### Color output
+
+The TUI automatically detects your terminal's color support and adapts:
+- 24-bit true color (recommended)
+- 256 colors
+- 16 colors (fallback)
+
+Colors are used to highlight:
+- Syntax in code blocks
+- Diff additions (green) and deletions (red)
+- Status indicators
+- Error messages
+
+## Working with images
+
+Attach images to your prompts for visual context:
+
+<CodeGroup>
+```bash Command line
+codex --image screenshot.png "what's wrong with this UI?"
+```
+
+```bash Multiple images
+codex --image fig1.png,fig2.png,chart.jpg "compare these visualizations"
+```
+</CodeGroup>
+
+Supported formats:
+- PNG, JPEG, GIF, WebP
+- Local file paths
+- Data URLs (via app-server)
+
+## Advanced usage
+
+### Resume sessions
+
+Return to a previous conversation:
+
+<CodeGroup>
+```bash Resume last session
+codex resume --last
+```
+
+```bash Resume by ID
+codex resume thr_abc123
+```
+
+```bash Resume with new prompt
+codex resume --last "continue the refactoring"
+```
+</CodeGroup>
+
+### Fork conversations
+
+Create a new branch from an existing thread:
+
+```bash
+codex fork thr_abc123
+```
+
+This copies the conversation history into a new thread, allowing you to explore alternative approaches.
+
+### Custom working directory
+
+Change the agent's working directory:
+
+```bash
+codex --cd /path/to/project
+```
+
+All file operations and commands will execute relative to this directory.
+
+### Configuration profiles
+
+Use predefined configuration profiles:
+
+```bash
+codex --profile production
+```
+
+Profiles are defined in `~/.codex/config.toml`.
+
+## Troubleshooting
+
+### Screen rendering issues
+
+If you see garbled output or rendering glitches:
+
+1. Try disabling alternate screen mode:
+   ```bash
+   codex --no-alt-screen
+   ```
+
+2. Check your `TERM` environment variable:
+   ```bash
+   echo $TERM  # Should be xterm-256color or similar
+   ```
+
+3. Update your terminal emulator to the latest version
+
+### Input not working
+
+If keyboard input seems unresponsive:
+
+- Ensure your terminal supports the required features
+- Check that no other process is capturing input
+- Try restarting your terminal emulator
+
+### Performance issues
+
+If the TUI feels sluggish:
+
+- Large conversation histories can slow rendering
+- Consider starting a new thread for unrelated tasks
+- Archive old threads to keep your session list manageable
+
+<Warning>
+  The TUI requires a minimum terminal size of 80x24 characters. Smaller terminals may not render correctly.
+</Warning>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Non-interactive mode" icon="code" href="/concepts/non-interactive-mode">
+    Learn about headless execution
+  </Card>
+  <Card title="Approvals" icon="shield-check" href="/concepts/approvals">
+    Configure approval policies
+  </Card>
+</CardGroup>

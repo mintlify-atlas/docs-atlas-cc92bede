@@ -1,0 +1,494 @@
+---
+title: "Execution Policies"
+description: "Control which commands Codex can execute with fine-grained rules"
+---
+
+## Overview
+
+Execution policies let you define rules that control which shell commands Codex can execute. This provides an additional security layer on top of sandboxing, allowing you to:
+
+- **Allowlist** safe commands that can run without approval
+- **Blocklist** dangerous commands that should never execute
+- **Require prompts** for commands that need human review
+
+<Info>
+Execution policies are evaluated before sandboxing and work alongside approval modes to provide defense-in-depth security.
+</Info>
+
+## Policy Language
+
+Policies are written in **Starlark** (a Python-like syntax) using the `prefix_rule()` function:
+
+```starlark
+prefix_rule(
+    pattern = ["command", ["arg1", "arg2"]],  # Ordered tokens; lists = alternatives
+    decision = "allow",                        # allow | prompt | forbidden
+    justification = "Why this rule exists",    # Human-readable explanation
+    match = [["command", "arg1"]],             # Examples that MUST match
+    not_match = [["command", "other"]]          # Examples that must NOT match
+)
+```
+
+### Pattern Matching
+
+<ParamField path="pattern" type="array" required>
+  Ordered list of tokens to match. Each element can be:
+  - A string: exact token match (e.g., `"git"`)
+  - A list of strings: match any alternative (e.g., `["commit", "push"]`)
+  
+  ```starlark
+  # Matches: git status, git diff, git log
+  pattern = ["git", ["status", "diff", "log"]]
+  ```
+</ParamField>
+
+<ParamField path="decision" type="string" default="allow">
+  What action to take when the pattern matches:
+  - `allow`: Execute without prompting
+  - `prompt`: Ask user for approval
+  - `forbidden`: Block execution entirely
+</ParamField>
+
+<ParamField path="justification" type="string">
+  Explanation shown to users. For `forbidden` rules, include a recommended alternative:
+  
+  ```starlark
+  justification = "Use `jj` instead of `git` for version control."
+  ```
+</ParamField>
+
+<ParamField path="match" type="array">
+  Example commands that should match this rule (unit tests).
+</ParamField>
+
+<ParamField path="not_match" type="array">
+  Example commands that should NOT match this rule (unit tests).
+</ParamField>
+
+## Policy Examples
+
+### Safe Read-Only Commands
+
+```starlark
+# Allow common read-only operations
+prefix_rule(
+    pattern = ["git", ["status", "diff", "log", "show"]],
+    decision = "allow",
+    justification = "Read-only git commands are safe",
+    match = [
+        ["git", "status"],
+        ["git", "log", "--oneline"],
+    ],
+)
+
+prefix_rule(
+    pattern = ["ls"],
+    decision = "allow",
+    justification = "Listing files is safe",
+)
+
+prefix_rule(
+    pattern = ["cat"],
+    decision = "allow",
+    justification = "Reading file contents is safe",
+)
+```
+
+### Commands Requiring Approval
+
+```starlark
+# Prompt before destructive operations
+prefix_rule(
+    pattern = ["rm"],
+    decision = "prompt",
+    justification = "File deletion requires approval",
+    match = [
+        ["rm", "file.txt"],
+        ["rm", "-rf", "directory"],
+    ],
+)
+
+prefix_rule(
+    pattern = ["git", ["push", "commit"]],
+    decision = "prompt",
+    justification = "Version control changes should be reviewed",
+)
+
+prefix_rule(
+    pattern = ["npm", "publish"],
+    decision = "prompt",
+    justification = "Publishing packages requires manual review",
+)
+```
+
+### Forbidden Commands
+
+```starlark
+# Block dangerous operations
+prefix_rule(
+    pattern = ["sudo"],
+    decision = "forbidden",
+    justification = "Privilege escalation is not allowed. Run Codex without sudo.",
+    not_match = [
+        ["sudoku"],  # Don't match similar words!
+    ],
+)
+
+prefix_rule(
+    pattern = ["curl"],
+    decision = "forbidden",
+    justification = "Network access is blocked. Use the sandbox's network restrictions instead.",
+)
+
+prefix_rule(
+    pattern = ["dd"],
+    decision = "forbidden",
+    justification = "Direct disk operations are forbidden for safety.",
+)
+```
+
+## Host Executable Resolution
+
+You can restrict which absolute paths are allowed for specific commands:
+
+```starlark
+host_executable(
+    name = "git",
+    paths = [
+        "/opt/homebrew/bin/git",
+        "/usr/bin/git",
+    ],
+)
+
+host_executable(
+    name = "python",
+    paths = [
+        "/usr/bin/python3",
+        "/usr/local/bin/python3",
+    ],
+)
+```
+
+### Matching Semantics
+
+<Steps>
+  <Step title="Exact Match First">
+    Codex always tries exact first-token matches first.
+    
+    Example: `/usr/bin/git status` only matches if a rule starts with `/usr/bin/git`
+  </Step>
+  
+  <Step title="Basename Fallback">
+    If no exact match exists and `--resolve-host-executables` is enabled:
+    - `/usr/bin/git` falls back to basename rules for `git`
+    - Only allowed if the path is in the `host_executable()` list
+    - If no `host_executable()` exists, basename fallback is allowed for any path
+  </Step>
+</Steps>
+
+## Using Policies
+
+### Command-Line Interface
+
+Check if a command is allowed:
+
+```bash
+codex execpolicy check --rules policy.rules git status
+```
+
+With hostname resolution:
+
+```bash
+codex execpolicy check \
+  --rules policy.rules \
+  --resolve-host-executables \
+  /usr/bin/git status
+```
+
+Merge multiple policy files:
+
+```bash
+codex execpolicy check \
+  --rules base-policy.rules \
+  --rules team-policy.rules \
+  --rules project-policy.rules \
+  git push
+```
+
+### Response Format
+
+The output is JSON:
+
+<CodeGroup>
+```json Match Found
+{
+  "matchedRules": [
+    {
+      "prefixRuleMatch": {
+        "matchedPrefix": ["git", "status"],
+        "decision": "allow",
+        "resolvedProgram": "/usr/bin/git",
+        "justification": "Read-only git commands are safe"
+      }
+    }
+  ],
+  "decision": "allow"
+}
+```
+
+```json No Match
+{
+  "matchedRules": []
+}
+```
+
+```json Forbidden
+{
+  "matchedRules": [
+    {
+      "prefixRuleMatch": {
+        "matchedPrefix": ["sudo"],
+        "decision": "forbidden",
+        "justification": "Privilege escalation is not allowed."
+      }
+    }
+  ],
+  "decision": "forbidden"
+}
+```
+</CodeGroup>
+
+### Decision Priority
+
+When multiple rules match, the **strictest** decision wins:
+
+```
+forbidden > prompt > allow
+```
+
+<Warning>
+If any matching rule is `forbidden`, the command is blocked regardless of other rules.
+</Warning>
+
+## Configuration
+
+Policy files can be stored in:
+
+1. **Global policies**: `~/.codex/execpolicy.rules`
+2. **Project policies**: `.codex/execpolicy.rules` in your repo
+3. **Custom location**: Specify with `--rules` flag
+
+<Tip>
+Commit project-specific policies to version control so all team members share the same rules.
+</Tip>
+
+## Advanced Examples
+
+### Development Workflow
+
+```starlark
+# Allow common dev commands
+prefix_rule(
+    pattern = [["npm", "yarn", "pnpm"], ["install", "test", "build"]],
+    decision = "allow",
+    justification = "Standard package manager operations",
+)
+
+prefix_rule(
+    pattern = ["cargo", ["build", "test", "check"]],
+    decision = "allow",
+    justification = "Rust development commands",
+)
+
+# Prompt before publishing
+prefix_rule(
+    pattern = [["npm", "cargo"], "publish"],
+    decision = "prompt",
+    justification = "Publishing requires review",
+)
+```
+
+### CI/CD Integration
+
+```starlark
+# Allow CI-specific commands
+prefix_rule(
+    pattern = ["docker", ["build", "run", "ps"]],
+    decision = "allow",
+    justification = "Docker operations for CI",
+)
+
+prefix_rule(
+    pattern = ["kubectl", "get"],
+    decision = "allow",
+    justification = "Read-only cluster inspection",
+)
+
+# Block cluster modifications
+prefix_rule(
+    pattern = ["kubectl", ["apply", "delete", "patch"]],
+    decision = "forbidden",
+    justification = "Cluster modifications must go through GitOps.",
+)
+```
+
+### Database Access
+
+```starlark
+# Allow read-only queries
+prefix_rule(
+    pattern = ["psql", "-c", "SELECT"],
+    decision = "allow",
+    justification = "Read-only database queries",
+)
+
+# Prompt for writes
+prefix_rule(
+    pattern = ["psql", "-c", ["INSERT", "UPDATE", "DELETE"]],
+    decision = "prompt",
+    justification = "Database modifications require approval",
+)
+
+# Block schema changes
+prefix_rule(
+    pattern = ["psql", "-c", ["DROP", "ALTER", "CREATE"]],
+    decision = "forbidden",
+    justification = "Schema changes must go through migrations.",
+)
+```
+
+## Testing Policies
+
+### Inline Tests
+
+Use `match` and `not_match` to validate rules:
+
+```starlark
+prefix_rule(
+    pattern = ["git", "push"],
+    decision = "prompt",
+    match = [
+        "git push",
+        ["git", "push", "origin", "main"],
+        "git push --force",
+    ],
+    not_match = [
+        "git pull",
+        "git commit",
+        "github push",  # Don't match similar names
+    ],
+)
+```
+
+### Validation on Load
+
+Policies are validated when loaded. Invalid rules cause an error:
+
+```bash
+$ codex execpolicy check --rules bad-policy.rules ls
+Error: Rule validation failed:
+  - Pattern is empty
+  - Invalid decision: "maybe" (must be allow/prompt/forbidden)
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Start Permissive" icon="unlock">
+    Begin with `allow` for most commands, add restrictions as needed
+  </Card>
+  
+  <Card title="Document Rationale" icon="message">
+    Always include clear `justification` text
+  </Card>
+  
+  <Card title="Test Thoroughly" icon="flask">
+    Use `match` and `not_match` to prevent regressions
+  </Card>
+  
+  <Card title="Layer Security" icon="layer-group">
+    Combine policies with sandboxing for defense-in-depth
+  </Card>
+</CardGroup>
+
+## Common Patterns
+
+<AccordionGroup>
+  <Accordion title="Allow safe subcommands only">
+    ```starlark
+    prefix_rule(
+        pattern = ["git", ["status", "diff", "log"]],
+        decision = "allow",
+    )
+    
+    prefix_rule(
+        pattern = ["git"],  # Catch-all for other git commands
+        decision = "prompt",
+    )
+    ```
+  </Accordion>
+  
+  <Accordion title="Allowlist approach (deny by default)">
+    ```starlark
+    # Allow only these specific commands
+    prefix_rule(pattern = ["ls"], decision = "allow")
+    prefix_rule(pattern = ["cat"], decision = "allow")
+    prefix_rule(pattern = ["git", "status"], decision = "allow")
+    
+    # Everything else requires approval (handled by Codex default behavior)
+    ```
+  </Accordion>
+  
+  <Accordion title="Blocklist approach (allow by default)">
+    ```starlark
+    # Block specific dangerous commands
+    prefix_rule(pattern = ["rm", "-rf", "/"], decision = "forbidden")
+    prefix_rule(pattern = ["sudo"], decision = "forbidden")
+    prefix_rule(pattern = ["dd"], decision = "forbidden")
+    
+    # Everything else is allowed (or controlled by approval mode)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Rule not matching expected command">
+    - Check token boundaries: `"git push"` is TWO tokens (`["git", "push"]`)
+    - Use the `check` command to test: `codex execpolicy check --rules policy.rules git push`
+    - Add `match` examples to validate behavior
+  </Accordion>
+  
+  <Accordion title="Command blocked unexpectedly">
+    - Use `--pretty` for readable output: `codex execpolicy check --rules policy.rules --pretty command`
+    - Check if multiple rules match (strictest wins)
+    - Verify `justification` text for the reason
+  </Accordion>
+  
+  <Accordion title="Absolute paths not working">
+    - Enable host executable resolution: `--resolve-host-executables`
+    - Define `host_executable()` entries for the command
+    - Check that the absolute path is in the allowed list
+  </Accordion>
+</AccordionGroup>
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Sandbox Configuration" icon="shield" href="/security/sandbox">
+    Configure OS-level sandboxing
+  </Card>
+  
+  <Card title="Approval Modes" icon="check" href="/configuration/approval-modes">
+    Control when Codex asks for permission
+  </Card>
+  
+  <Card title="Exec Mode" icon="terminal" href="/advanced/exec-mode">
+    Run Codex non-interactively
+  </Card>
+  
+  <Card title="Security Best Practices" icon="lock" href="/security/best-practices">
+    Comprehensive security guidance
+  </Card>
+</CardGroup>

@@ -1,0 +1,530 @@
+---
+title: Sandboxing Architecture
+description: Platform-specific security isolation and execution policies
+---
+
+Codex implements defense-in-depth sandboxing to isolate AI-executed commands from sensitive system resources, using platform-native security primitives.
+
+## Overview
+
+All commands executed by Codex run inside a sandbox that restricts:
+
+- **Filesystem access** — Read-only by default, configurable write permissions
+- **Network access** — Optional restrictions or proxy routing
+- **Process capabilities** — Reduced privileges and system call filtering
+- **Protected paths** — `.git`, `.codex` always read-only even in writable roots
+
+<CardGroup cols={3}>
+  <Card title="macOS" icon="apple">
+    Seatbelt sandbox profiles via `/usr/bin/sandbox-exec`
+  </Card>
+  <Card title="Linux" icon="linux">
+    Landlock LSM + Bubblewrap container isolation
+  </Card>
+  <Card title="Windows" icon="windows">
+    Process isolation and token restrictions
+  </Card>
+</CardGroup>
+
+## Sandbox Modes
+
+Codex provides three sandbox policies:
+
+### Read-Only (Default)
+
+<Card title="read-only" icon="lock">
+  Maximum security: entire filesystem is read-only, network blocked.
+  
+  **Use case:** Exploring unfamiliar code, running untrusted prompts
+  
+  ```bash
+  codex --sandbox read-only
+  ```
+</Card>
+
+### Workspace Write
+
+<Card title="workspace-write" icon="pen-to-square">
+  Balanced security: write access within workspace, network optional.
+  
+  **Use case:** Active development, file modifications needed
+  
+  ```bash
+  codex --sandbox workspace-write
+  ```
+  
+  **Protected paths (always read-only):**
+  - `.git` directory or pointer file
+  - Resolved `gitdir:` target
+  - `.codex` directory
+</Card>
+
+### Danger Full Access
+
+<Card title="danger-full-access" icon="triangle-exclamation" color="#DC2626">
+  No sandbox enforcement: full system access.
+  
+  **Use case:** Running in external container/VM, advanced users
+  
+  ```bash
+  codex --sandbox danger-full-access
+  ```
+  
+  <Warning>
+  Only use this mode if you are already running Codex inside a container or other isolated environment.
+  </Warning>
+</Card>
+
+## Platform Implementations
+
+### macOS (Seatbelt)
+
+Codex uses Apple's Seatbelt sandbox via `/usr/bin/sandbox-exec`.
+
+<AccordionGroup>
+  <Accordion title="Core Implementation">
+    **Location:** `codex-core` expects `/usr/bin/sandbox-exec`
+    
+    **Features:**
+    - Network access control via `SandboxPolicy`
+    - Filesystem read/write roots configuration
+    - Protected path enforcement (`.git`, `.codex`)
+    - Seatbelt profile generation at runtime
+  </Accordion>
+  
+  <Accordion title="Permission Profiles">
+    Seatbelt supports macOS-specific permission extensions:
+    
+    **No extension profile:**
+    - Legacy default preferences read access (`user-preference-read`)
+    
+    **Extension profile with no `macos_preferences` grant:**
+    - No preferences access clauses added
+    
+    **`macos_preferences = "readonly"`:**
+    - cfprefs read clauses
+    - `user-preference-read` operation
+    
+    **`macos_preferences = "readwrite"`:**
+    - All readonly clauses
+    - `user-preference-write` operation
+    - cfprefs shm write clauses
+    
+    **`macos_automation = true`:**
+    - Broad Apple Events send permissions
+    
+    **`macos_automation = ["com.apple.Notes", ...]`:**
+    - Apple Events send only to listed bundle IDs
+    
+    **`macos_accessibility = true`:**
+    - `com.apple.axserver` mach lookup
+    
+    **`macos_calendar = true`:**
+    - `com.apple.CalendarAgent` mach lookup
+  </Accordion>
+  
+  <Accordion title="Testing Seatbelt">
+    Test sandbox behavior with:
+    
+    ```bash
+    codex sandbox macos [--full-auto] [--log-denials] [COMMAND]...
+    
+    # Legacy alias
+    codex debug seatbelt [--full-auto] [--log-denials] [COMMAND]...
+    ```
+    
+    **Flags:**
+    - `--full-auto` — Run command automatically
+    - `--log-denials` — Log all denied operations
+  </Accordion>
+</AccordionGroup>
+
+### Linux (Landlock + Bubblewrap)
+
+Codex uses a dual-mode Linux sandbox with legacy and modern pipelines.
+
+<AccordionGroup>
+  <Accordion title="Architecture">
+    **Crate:** `codex-linux-sandbox`
+    
+    **Produces:**
+    - Standalone `codex-linux-sandbox` executable (bundled with npm CLI)
+    - Library crate exposing `run_main()` for arg0 routing
+    
+    **arg0 Routing:**
+    When the binary detects arg0 is `codex-linux-sandbox`, it executes sandbox logic instead of normal CLI.
+  </Accordion>
+  
+  <Accordion title="Legacy Pipeline (Landlock)">
+    Original implementation using Landlock LSM and mount namespaces.
+    
+    **Features:**
+    - Landlock filesystem restrictions
+    - Mount protection
+    - Default when `use_linux_sandbox_bwrap` feature is off
+  </Accordion>
+  
+  <Accordion title="Modern Pipeline (Bubblewrap)">
+    Standardized container-based isolation using vendored bubblewrap.
+    
+    **Feature gate:** `use_linux_sandbox_bwrap` (temporary during rollout)
+    
+    **CLI flag:** `-c features.use_linux_sandbox_bwrap=true`
+    
+    **Isolation mechanisms:**
+    
+    1. **Process hardening:**
+       - `PR_SET_NO_NEW_PRIVS` applied in-process
+       - seccomp network filter
+    
+    2. **Filesystem isolation:**
+       - Read-only by default: `--ro-bind / /`
+       - Writable roots: `--bind <root> <root>`
+       - Protected subpaths re-applied: `--ro-bind` for `.git`, `gitdir:`, `.codex`
+       - Symlink blocking: mount `/dev/null` on symlinks or missing components
+    
+    3. **Namespace isolation:**
+       - PID namespace: `--unshare-pid`
+       - Network namespace: `--unshare-net` (when network restricted)
+       - Fresh `/proc`: `--proc /proc` (skip with `--no-proc` in restricted containers)
+    
+    4. **Managed proxy mode:**
+       - `--unshare-net` + internal TCP→UDS→TCP bridge
+       - Tool traffic reaches only configured proxy endpoints
+       - seccomp blocks new `AF_UNIX`/`socketpair` creation for user command
+  </Accordion>
+  
+  <Accordion title="Testing Linux Sandbox">
+    Test sandbox behavior with:
+    
+    ```bash
+    codex sandbox linux [--full-auto] [COMMAND]...
+    
+    # Legacy alias
+    codex debug landlock [--full-auto] [COMMAND]...
+    ```
+    
+    **Flags:**
+    - `--full-auto` — Run command automatically
+  </Accordion>
+</AccordionGroup>
+
+### Vendored Bubblewrap
+
+<Info>
+Codex vendors bubblewrap for consistent behavior across distributions.
+
+**Location:** `codex-rs/vendor/bubblewrap/`
+
+The vendored build ensures Codex doesn't depend on system package versions.
+</Info>
+
+### Windows Sandbox
+
+Platform-specific process isolation for Windows.
+
+<Accordion title="Windows Implementation">
+  **Crate:** `codex-windows-sandbox` (inferred from Cargo.toml)
+  
+  **Testing:**
+  ```bash
+  codex sandbox windows [--full-auto] [COMMAND]...
+  ```
+  
+  **Setup:**
+  App-server exposes `windowsSandbox/setupStart` for elevated/unelevated modes.
+</Accordion>
+
+## Process Hardening
+
+All Codex processes apply security hardening pre-main.
+
+<Card title="codex-process-hardening" icon="shield-halved">
+  Cross-platform hardening applied via `#[ctor::ctor]` before `main()`.
+  
+  **Hardening steps:**
+  
+  1. **Disable core dumps**
+     - Prevents process memory dumps
+     - Protects sensitive data (API keys, tokens)
+  
+  2. **Disable ptrace attach (Linux/macOS)**
+     - Blocks debugger attachment
+     - Prevents runtime inspection
+  
+  3. **Remove dangerous environment variables**
+     - `LD_PRELOAD` — Prevents shared library injection
+     - `DYLD_*` — Blocks macOS dynamic linker attacks
+  
+  **Usage:**
+  ```rust
+  #[ctor::ctor]
+  fn harden() {
+      codex_process_hardening::pre_main_hardening();
+  }
+  ```
+</Card>
+
+## Execution Policy
+
+Codex tracks command trust decisions via execution policies.
+
+<AccordionGroup>
+  <Accordion title="codex-execpolicy">
+    Modern execution policy management.
+    
+    **Features:**
+    - Command allow-lists
+    - Session-scoped approvals (`acceptForSession`)
+    - Persistent trust decisions
+    - Amendment proposals from approvals
+  </Accordion>
+  
+  <Accordion title="codex-execpolicy-legacy">
+    Legacy execution policy support for backwards compatibility.
+  </Accordion>
+</AccordionGroup>
+
+## Approval Flows
+
+Codex implements interactive approval for sensitive operations.
+
+### Command Approvals
+
+<Steps>
+  <Step title="Command proposed">
+    Agent proposes a shell command.
+  </Step>
+  
+  <Step title="Approval requested">
+    Based on `approval_policy` config, Codex may request approval.
+    
+    **Available decisions:**
+    - `accept` — Run this command once
+    - `acceptForSession` — Trust for current session
+    - `acceptWithExecpolicyAmendment` — Add to allow-list
+    - `applyNetworkPolicyAmendment` — Allow network host
+    - `decline` — Reject command
+    - `cancel` — Cancel entire turn
+  </Step>
+  
+  <Step title="Command executed">
+    If approved, command runs in sandbox with configured permissions.
+  </Step>
+  
+  <Step title="Result returned">
+    Output, exit code, and duration returned to agent.
+  </Step>
+</Steps>
+
+### File Change Approvals
+
+<Steps>
+  <Step title="Changes proposed">
+    Agent proposes file modifications (edits, creates, deletes).
+  </Step>
+  
+  <Step title="Diff shown">
+    User sees unified diff of all changes.
+  </Step>
+  
+  <Step title="Approval requested">
+    User accepts or declines the entire patch.
+    
+    **Available decisions:**
+    - `accept` — Apply changes
+    - `decline` — Reject changes
+  </Step>
+  
+  <Step title="Patch applied">
+    If approved, changes written to disk.
+  </Step>
+</Steps>
+
+## Network Access Control
+
+Codex supports multiple network access modes:
+
+<CodeGroup>
+```toml Restricted (Default)
+[sandbox]
+network_access = "restricted"
+```
+
+```toml Enabled
+[sandbox]
+network_access = "enabled"
+```
+
+```toml Managed Proxy
+[sandbox]
+network_access = "managed_proxy"
+
+[[sandbox.proxy_endpoints]]
+host = "api.openai.com"
+action = "allow"
+```
+</CodeGroup>
+
+### Managed Proxy Mode
+
+Linux bubblewrap pipeline supports managed proxy routing:
+
+1. **Network namespace isolation** — `--unshare-net`
+2. **Internal bridge** — TCP→UDS→TCP routing
+3. **Endpoint filtering** — Only configured hosts reachable
+4. **seccomp enforcement** — Block new socket creation after bridge setup
+
+## Configuration
+
+Sandbox settings are configured in `~/.codex/config.toml`:
+
+<CodeGroup>
+```toml Top-level Flag
+# Quick sandbox mode selection
+sandbox_mode = "workspace-write"
+```
+
+```toml Detailed Configuration
+[sandbox]
+mode = "workspace-write"
+writable_roots = ["/Users/me/project"]
+network_access = "restricted"
+
+# Protected paths (always read-only)
+# .git, .codex are automatically protected
+```
+</CodeGroup>
+
+### CLI Override
+
+Override sandbox mode per-invocation:
+
+```bash
+# Read-only
+codex --sandbox read-only
+
+# Workspace write
+codex --sandbox workspace-write
+
+# Danger mode
+codex --sandbox danger-full-access
+```
+
+Same setting available via:
+```bash
+codex -c sandbox_mode=workspace-write
+```
+
+## External Sandbox Mode
+
+For pre-sandboxed environments (containers, VMs):
+
+<Accordion title="externalSandbox Policy">
+  Tell Codex it's already sandboxed externally:
+  
+  ```json
+  {
+    "sandboxPolicy": {
+      "type": "externalSandbox",
+      "networkAccess": "enabled"
+    }
+  }
+  ```
+  
+  **Behavior:**
+  - Codex won't enforce its own sandbox
+  - Agent sees full filesystem access in context
+  - `networkAccess` state passed through environment context
+  
+  **Use cases:**
+  - Docker containers
+  - Kubernetes pods
+  - VMs with dedicated Codex instances
+</Accordion>
+
+## Testing Sandboxes
+
+Codex provides dedicated commands to test sandbox behavior:
+
+<CodeGroup>
+```bash macOS
+codex sandbox macos [--full-auto] [--log-denials] [COMMAND]...
+```
+
+```bash Linux
+codex sandbox linux [--full-auto] [COMMAND]...
+```
+
+```bash Windows
+codex sandbox windows [--full-auto] [COMMAND]...
+```
+</CodeGroup>
+
+**Flags:**
+- `--full-auto` — Automatically run the command (non-interactive)
+- `--log-denials` — Log all denied operations (macOS only)
+
+**Example usage:**
+```bash
+# Test file write restrictions
+codex sandbox linux --full-auto touch /tmp/test.txt
+
+# Test network access
+codex sandbox macos --log-denials curl https://example.com
+```
+
+## Security Properties
+
+<CardGroup cols={2}>
+  <Card title="Defense in Depth" icon="layer-group">
+    Multiple security layers:
+    - Process hardening
+    - Sandbox isolation
+    - Approval flows
+    - Execution policies
+  </Card>
+  
+  <Card title="Principle of Least Privilege" icon="user-lock">
+    Minimum required permissions:
+    - Read-only by default
+    - Writable roots explicit
+    - Network opt-in
+    - Protected paths enforced
+  </Card>
+  
+  <Card title="Platform-Native" icon="microchip">
+    OS security primitives:
+    - macOS Seatbelt
+    - Linux Landlock/Bubblewrap
+    - Windows token restrictions
+  </Card>
+  
+  <Card title="User Control" icon="hand">
+    User in the loop:
+    - Interactive approvals
+    - Configurable policies
+    - Session-scoped trust
+    - Persistent allow-lists
+  </Card>
+</CardGroup>
+
+## Documentation References
+
+For more information, see:
+
+- [Official Sandbox Documentation](https://developers.openai.com/codex/security) — Codex sandboxing and approvals
+- `docs/sandbox.md` — Additional sandbox details
+- `codex-rs/core/README.md` — Core sandbox expectations
+- `codex-rs/linux-sandbox/README.md` — Linux implementation details
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Architecture Overview" icon="diagram-project" href="/architecture/overview">
+    High-level architecture of Codex CLI
+  </Card>
+  <Card title="Rust Crates" icon="rust" href="/architecture/rust-crates">
+    Workspace structure and crate organization
+  </Card>
+</CardGroup>

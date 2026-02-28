@@ -1,0 +1,241 @@
+---
+title: codex login
+description: Authenticate with ChatGPT or provide an API key
+---
+
+## Syntax
+
+```bash
+codex login [OPTIONS]
+codex login status
+```
+
+## Description
+
+The `login` command authenticates Codex with OpenAI. You can sign in with your ChatGPT account (recommended) or provide an API key.
+
+<Note>
+We recommend signing in with ChatGPT to use Codex as part of your Plus, Pro, Team, Edu, or Enterprise plan. [Learn more about ChatGPT plans](https://help.openai.com/en/articles/11369540-codex-in-chatgpt).
+</Note>
+
+## Usage
+
+### Sign In with ChatGPT (Recommended)
+
+```bash
+codex login
+```
+
+This opens your browser to sign in with your ChatGPT account.
+
+### Sign In with Device Code
+
+If you can't open a browser, use device code authentication:
+
+```bash
+codex login --device-auth
+```
+
+You'll receive a code to enter at a URL.
+
+### Sign In with API Key
+
+<Warning>
+API keys require [additional setup](https://developers.openai.com/codex/auth#sign-in-with-an-api-key) and are billed separately from ChatGPT plans.
+</Warning>
+
+Provide an API key from stdin:
+
+```bash
+printenv OPENAI_API_KEY | codex login --with-api-key
+echo "sk-..." | codex login --with-api-key
+```
+
+### Check Login Status
+
+View your current authentication status:
+
+```bash
+codex login status
+```
+
+## Options
+
+<ParamField path="--device-auth" type="boolean">
+  Use device code authentication instead of browser-based login. Shows a code to enter at a URL.
+</ParamField>
+
+<ParamField path="--with-api-key" type="boolean">
+  Read an API key from stdin instead of using ChatGPT authentication.
+</ParamField>
+
+### Advanced OAuth Options
+
+<ParamField path="--experimental_issuer" type="string">
+  Custom OAuth issuer base URL. Advanced use only.
+  <Note>This is an experimental flag for custom deployments.</Note>
+</ParamField>
+
+<ParamField path="--experimental_client-id" type="string">
+  Custom OAuth client ID. Advanced use only.
+  <Note>This is an experimental flag for custom deployments.</Note>
+</ParamField>
+
+## Examples
+
+### Standard Login Flow
+
+```bash
+# Sign in with ChatGPT (opens browser)
+codex login
+
+# Check your authentication status
+codex login status
+```
+
+### Device Code Flow
+
+```bash
+# Start device code authentication
+codex login --device-auth
+
+# Output:
+# Visit https://chatgpt.com/activate
+# Enter code: ABCD-1234
+# Waiting for authentication...
+```
+
+### API Key from Environment
+
+```bash
+# From environment variable
+printenv OPENAI_API_KEY | codex login --with-api-key
+
+# From file
+cat api-key.txt | codex login --with-api-key
+
+# Inline (avoid for security)
+echo "sk-proj-..." | codex login --with-api-key
+```
+
+### Verify Authentication
+
+```bash
+# Check login status
+codex login status
+
+# Sample output:
+# Authenticated: Yes
+# Method: ChatGPT OAuth
+# Account: user@example.com
+```
+
+### CI/CD Authentication
+
+For automation, use API keys:
+
+```yaml
+# GitHub Actions
+- name: Login to Codex
+  run: |
+    echo "${{ secrets.OPENAI_API_KEY }}" | codex login --with-api-key
+```
+
+```bash
+# GitLab CI
+script:
+  - echo "$OPENAI_API_KEY" | codex login --with-api-key
+  - codex exec "run tests"
+```
+
+## Authentication Methods
+
+### ChatGPT OAuth (Recommended)
+
+**Pros:**
+- Uses your existing ChatGPT subscription
+- No additional billing
+- Includes plan features (Plus, Pro, Team, etc.)
+
+**How it works:**
+1. Run `codex login`
+2. Browser opens to ChatGPT
+3. Sign in and authorize
+4. Credentials stored securely
+
+### Device Code
+
+**When to use:**
+- Remote servers without browser access
+- Terminal-only environments
+- Restricted network access
+
+**How it works:**
+1. Run `codex login --device-auth`
+2. Get a device code
+3. Visit URL in any browser
+4. Enter code
+5. Credentials stored
+
+### API Key
+
+**When to use:**
+- CI/CD pipelines
+- Automation scripts
+- Separate billing requirements
+
+**How it works:**
+1. Get API key from [OpenAI Platform](https://platform.openai.com/api-keys)
+2. Pipe to `codex login --with-api-key`
+3. Key stored securely
+
+<Warning>
+API keys are billed separately on the OpenAI Platform. ChatGPT subscriptions don't include API credits.
+</Warning>
+
+## Credential Storage
+
+Codex stores credentials securely using your system's keychain:
+
+- **macOS**: Keychain Access
+- **Linux**: Secret Service API (gnome-keyring, KWallet)
+- **Windows**: Windows Credential Manager
+
+You can configure storage with the `cli_auth_credentials_store` setting in `config.toml`.
+
+## Troubleshooting
+
+### Browser Doesn't Open
+
+Use device code authentication instead:
+
+```bash
+codex login --device-auth
+```
+
+### "Invalid API Key" Error
+
+Ensure your API key:
+- Starts with `sk-proj-` or `sk-`
+- Has not expired
+- Has correct permissions
+- Is from [OpenAI Platform](https://platform.openai.com/api-keys)
+
+### Credentials Not Persisting
+
+Check credential storage configuration:
+
+```bash
+codex login status
+```
+
+Configure in `~/.codex/config.toml`:
+
+```toml
+[cli_auth]
+credentials_store = "keychain"  # or "file"
+```
+
+## Related Commands
+
+- [`codex logout`](/cli/logout) - Remove stored credentials

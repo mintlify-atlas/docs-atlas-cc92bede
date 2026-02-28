@@ -1,0 +1,380 @@
+---
+title: Contribution Guidelines
+description: Code style, conventions, and best practices for contributing to Codex CLI
+---
+
+This guide outlines the coding standards, conventions, and best practices for invited contributors to the Codex CLI project.
+
+## Development Workflow
+
+If you've been invited by a Codex team member to contribute a PR, follow this recommended workflow:
+
+<Steps>
+  <Step title="Create a Topic Branch">
+    Create a branch from `main` with a descriptive name:
+    
+    ```bash
+    git checkout -b feat/interactive-prompt
+    git checkout -b fix/snapshot-rendering
+    ```
+  </Step>
+
+  <Step title="Keep Changes Focused">
+    Multiple unrelated fixes should be opened as separate PRs. Focus on one problem at a time.
+  </Step>
+
+  <Step title="Ensure Quality">
+    Before pushing, ensure your change is free of:
+    - Lint warnings
+    - Test failures
+    - Type errors (TypeScript)
+  </Step>
+
+  <Step title="Keep Commits Atomic">
+    Each commit should:
+    - Compile successfully
+    - Pass all tests
+    - Be logically independent (makes reviews and rollbacks easier)
+  </Step>
+</Steps>
+
+## Guidance for Invited Code Contributions
+
+<CardGroup cols={2}>
+  <Card title="1. Start with an Issue" icon="flag">
+    Open a new issue or comment on an existing discussion to agree on the solution before writing code.
+  </Card>
+  
+  <Card title="2. Add or Update Tests" icon="flask">
+    Bug fixes should come with test coverage that fails before your change and passes afterwards. Aim for meaningful assertions.
+  </Card>
+  
+  <Card title="3. Document Behavior" icon="book">
+    If your change affects user-facing behavior, update the README, inline help (`codex --help`), or relevant example projects.
+  </Card>
+  
+  <Card title="4. Keep Commits Atomic" icon="code-commit">
+    Each commit should compile and tests should pass. This makes reviews and potential rollbacks easier.
+  </Card>
+</CardGroup>
+
+## Rust Code Conventions
+
+### General Rules
+
+<AccordionGroup>
+  <Accordion title="Crate naming">
+    Crate names are prefixed with `codex-`. For example, the `core` folder's crate is named `codex-core`.
+  </Accordion>
+
+  <Accordion title="Formatting and linting">
+    - Always run `just fmt` after making Rust code changes
+    - Run `just fix -p <crate>` to fix linter issues before finalizing changes
+    - Do not re-run tests after running `fix` or `fmt`
+  </Accordion>
+
+  <Accordion title="Control flow">
+    - Always collapse if statements per [clippy::collapsible_if](https://rust-lang.github.io/rust-clippy/master/index.html#collapsible_if)
+    - When possible, make `match` statements exhaustive and avoid wildcard arms
+  </Accordion>
+
+  <Accordion title="String formatting">
+    - Always inline format! args when possible per [clippy::uninlined_format_args](https://rust-lang.github.io/rust-clippy/master/index.html#uninlined_format_args)
+    - Use method references over closures per [clippy::redundant_closure_for_method_calls](https://rust-lang.github.io/rust-clippy/master/index.html#redundant_closure_for_method_calls)
+  </Accordion>
+
+  <Accordion title="Helper methods">
+    Do not create small helper methods that are referenced only once. Keep code inline for clarity.
+  </Accordion>
+</AccordionGroup>
+
+### TUI Code Conventions
+
+For the terminal user interface (`codex-tui`), follow these ratatui styling conventions:
+
+<CodeGroup>
+  ```rust Stylize helpers (preferred)
+  use ratatui::style::Stylize;
+  
+  // Basic spans
+  "text".into()
+  
+  // Styled spans
+  "error".red()
+  "success".green()
+  "info".cyan()
+  "muted".dim()
+  
+  // Chained styling
+  url.cyan().underlined()
+  header.bold().magenta()
+  ```
+
+  ```rust Building lines
+  // Prefer vec![...].into() when type is obvious
+  let line: Line = vec!["  └ ".into(), "M".red(), " ".dim(), "tui/src/app.rs".dim()].into();
+  
+  // Use Line::from when type isn't obvious
+  let line = Line::from(vec![span1, span2]);
+  ```
+
+  ```rust Avoid hardcoded white
+  // Don't do this:
+  "text".white()
+  
+  // Do this instead (use default foreground):
+  "text".into()
+  ```
+</CodeGroup>
+
+<Warning>
+  See `codex-rs/tui/styles.md` for complete TUI styling conventions.
+</Warning>
+
+### Text Wrapping
+
+- Always use `textwrap::wrap` to wrap plain strings
+- For ratatui `Line` wrapping, use helpers in `tui/src/wrapping.rs` (e.g., `word_wrap_lines`, `word_wrap_line`)
+- Use `initial_indent`/`subsequent_indent` options from `RtOptions` for indenting wrapped lines
+- Use `prefix_lines` helper from `line_utils` for prefixing lines
+
+## TypeScript Code Conventions
+
+<Warning>
+  The TypeScript implementation is **legacy**. These conventions are for reference only.
+</Warning>
+
+### Code Quality Tools
+
+- **Vitest** for unit tests
+- **ESLint** for linting
+- **Prettier** for code formatting
+- **TypeScript** for type checking
+
+### Before Pushing
+
+```bash
+pnpm test && pnpm run lint && pnpm run typecheck
+```
+
+## Opening a Pull Request
+
+<Warning>
+  Remember: Pull requests must be **explicitly invited** by a Codex team member.
+</Warning>
+
+<Steps>
+  <Step title="Fill in the PR Template">
+    Include:
+    - **What?** - What does this PR change?
+    - **Why?** - Why is this change necessary?
+    - **How?** - How does it work?
+    - Link to the bug report or enhancement request
+  </Step>
+
+  <Step title="Run All Checks Locally">
+    <Tabs>
+      <Tab title="Rust">
+        ```bash
+        just fmt
+        just fix -p <crate>
+        cargo test -p <crate>
+        ```
+      </Tab>
+      
+      <Tab title="TypeScript">
+        ```bash
+        pnpm test && pnpm run lint && pnpm run typecheck
+        ```
+      </Tab>
+    </Tabs>
+    
+    <Warning>
+      CI failures that could have been caught locally slow down the process.
+    </Warning>
+  </Step>
+
+  <Step title="Update Your Branch">
+    Make sure your branch is up-to-date with `main` and resolve any merge conflicts.
+  </Step>
+
+  <Step title="Mark as Ready for Review">
+    Only mark the PR as **Ready for review** when you believe it is in a merge-able state.
+  </Step>
+</Steps>
+
+## Model Metadata Updates
+
+When updating model catalogs or model metadata (`/models` payloads, presets, or fixtures):
+
+- Set `input_modalities` explicitly for any model that does not support images
+- Keep compatibility defaults in mind: omitted `input_modalities` currently implies text + image support
+- Ensure client surfaces that accept images (e.g., TUI paste/attach) consume the same capability signal
+- Add/update tests that cover unsupported-image behavior and warning paths
+
+## App-Server API Development
+
+When working on app-server protocol in `codex-rs`:
+
+### Core Rules
+
+<CardGroup cols={2}>
+  <Card title="v2 Development" icon="2">
+    All active API development should happen in app-server v2. Do not add new API surface area to v1.
+  </Card>
+  
+  <Card title="Payload Naming" icon="tag">
+    - `*Params` for request payloads
+    - `*Response` for responses
+    - `*Notification` for notifications
+  </Card>
+  
+  <Card title="RPC Methods" icon="route">
+    Expose as `<resource>/<method>` with singular `<resource>` (e.g., `thread/read`, `app/list`)
+  </Card>
+  
+  <Card title="Field Casing" icon="font">
+    Use camelCase on the wire with `#[serde(rename_all = "camelCase")]`
+  </Card>
+</CardGroup>
+
+### Development Workflow
+
+<Steps>
+  <Step title="Update Documentation">
+    Update `app-server/README.md` when API behavior changes.
+  </Step>
+
+  <Step title="Regenerate Schema Fixtures">
+    ```bash
+    just write-app-server-schema
+    
+    # If experimental API is affected:
+    just write-app-server-schema --experimental
+    ```
+  </Step>
+
+  <Step title="Validate Changes">
+    ```bash
+    cargo test -p codex-app-server-protocol
+    ```
+  </Step>
+</Steps>
+
+## Review Process
+
+<Steps>
+  <Step title="Maintainer Assignment">
+    One maintainer will be assigned as a primary reviewer.
+  </Step>
+
+  <Step title="Scope Verification">
+    If your invited PR introduces scope or behavior that was not previously discussed and approved, the PR may be closed.
+  </Step>
+
+  <Step title="Requested Changes">
+    We may ask for changes. Please do not take this personally. We value the work, but also value consistency and long-term maintainability.
+  </Step>
+
+  <Step title="Merge">
+    When there is consensus that the PR meets the bar, a maintainer will squash-and-merge.
+  </Step>
+</Steps>
+
+## Contributor License Agreement (CLA)
+
+<Warning>
+  All contributors **must** accept the CLA.
+</Warning>
+
+The process is lightweight:
+
+<Steps>
+  <Step title="Open Your Pull Request">
+    Create and submit your PR.
+  </Step>
+
+  <Step title="Sign the CLA">
+    Paste the following comment (or reply `recheck` if you've signed before):
+    
+    ```text
+    I have read the CLA Document and I hereby sign the CLA
+    ```
+  </Step>
+
+  <Step title="Bot Verification">
+    The CLA-Assistant bot records your signature and marks the status check as passed.
+  </Step>
+</Steps>
+
+No special Git commands, email attachments, or commit footers required.
+
+## Configuration Changes
+
+If you change `ConfigToml` or nested config types:
+
+```bash
+just write-config-schema
+```
+
+This updates `codex-rs/core/config.schema.json`.
+
+## Dependency Changes
+
+If you change Rust dependencies (`Cargo.toml` or `Cargo.lock`):
+
+```bash
+# From repo root
+just bazel-lock-update
+just bazel-lock-check
+```
+
+Include the lockfile update in the same change.
+
+## Community Values
+
+<CardGroup cols={3}>
+  <Card title="Be Kind and Inclusive" icon="heart">
+    Treat others with respect. We follow the [Contributor Covenant](https://www.contributor-covenant.org/).
+  </Card>
+  
+  <Card title="Assume Good Intent" icon="handshake">
+    Written communication is hard - err on the side of generosity.
+  </Card>
+  
+  <Card title="Teach & Learn" icon="graduation-cap">
+    If you spot something confusing, open an issue or discussion with suggestions or clarifications.
+  </Card>
+</CardGroup>
+
+## Getting Help
+
+If you run into problems:
+
+- Open a **Discussion** topic
+- Jump into the relevant **issue**
+- Ask in community channels
+
+We are happy to help. Together we can make Codex CLI an incredible tool.
+
+## Security & Responsible AI
+
+<Warning>
+  Have you discovered a vulnerability or have concerns about model output?
+  
+  Please email **security@openai.com** and we will respond promptly.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card title="Setup" icon="wrench" href="/contributing/setup">
+    Set up your development environment
+  </Card>
+  <Card title="Building" icon="hammer" href="/contributing/building">
+    Learn how to build the project
+  </Card>
+  <Card title="Testing" icon="flask" href="/contributing/testing">
+    Run tests to validate changes
+  </Card>
+</CardGroup>

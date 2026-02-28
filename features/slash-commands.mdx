@@ -1,0 +1,321 @@
+---
+title: Slash Commands
+description: Control Codex with special commands that modify behavior, manage state, and trigger specific features
+---
+
+## What are Slash Commands?
+
+Slash commands are special commands that start with `/` and give you control over Codex's behavior. They're used to modify settings, manage conversation state, trigger specific features, and control the agent's workflow.
+
+<Note>
+Slash commands are entered in the Codex prompt and are processed before being sent to the AI model.
+</Note>
+
+## Available Commands
+
+### Workflow Control
+
+<AccordionGroup>
+  <Accordion title="/review - Code Review Mode" icon="magnifying-glass">
+    Triggers a specialized code review of your changes.
+    
+    ```bash
+    /review
+    ```
+    
+    **What it does:**
+    - Spawns a sub-agent with specialized review instructions
+    - Analyzes your code changes for bugs, security issues, and maintainability problems
+    - Provides structured feedback with priority levels (P0-P3)
+    - Outputs an overall correctness verdict
+    - Exits automatically when review is complete
+    
+    **Features:**
+    - Uses dedicated review prompt and model
+    - Can be configured with custom review model via `review_model` in config
+    - Auto-approval enabled (no interruptions during review)
+    - Web search and collaborative tools disabled for focused review
+    
+    See [Code Review](/features/code-review) for detailed usage.
+  </Accordion>
+  
+  <Accordion title="/use - Load a Skill" icon="puzzle-piece">
+    Explicitly load a specific skill for the current task.
+    
+    ```bash
+    /use skill-name
+    ```
+    
+    **Examples:**
+    ```bash
+    /use pdf-editor
+    /use skill-creator
+    /use bigquery-analytics
+    ```
+    
+    This ensures the skill is loaded into context even if it wouldn't trigger automatically.
+  </Accordion>
+  
+  <Accordion title="/apps - Manage App Connectors" icon="plug">
+    Lists available and installed ChatGPT app connectors.
+    
+    ```bash
+    /apps
+    ```
+    
+    Shows:
+    - Connected apps (labeled as "connected")
+    - Available apps that can be installed
+    
+    See [Apps & Connectors](/features/apps-connectors) for more details.
+  </Accordion>
+</AccordionGroup>
+
+### Session Management
+
+<AccordionGroup>
+  <Accordion title="/clear - Clear Conversation History" icon="trash">
+    Clears the current conversation history while keeping configuration.
+    
+    ```bash
+    /clear
+    ```
+    
+    Useful when you want to start fresh without restarting Codex.
+  </Accordion>
+  
+  <Accordion title="/reset - Full Reset" icon="rotate-right">
+    Resets both conversation history and session state.
+    
+    ```bash
+    /reset
+    ```
+    
+    More thorough than `/clear` - resets all session state.
+  </Accordion>
+</AccordionGroup>
+
+### Configuration
+
+<AccordionGroup>
+  <Accordion title="/model - Switch Model" icon="brain">
+    Switch to a different AI model mid-conversation.
+    
+    ```bash
+    /model gpt-4o
+    /model o1-mini
+    /model claude-3-5-sonnet-20241022
+    ```
+    
+    Changes the model for the current session without restarting.
+  </Accordion>
+  
+  <Accordion title="/approval - Change Approval Mode" icon="shield-check">
+    Change the approval policy for the current session.
+    
+    ```bash
+    /approval suggest
+    /approval auto-edit
+    /approval full-auto
+    ```
+    
+    **Approval modes:**
+    - `suggest` - Agent asks for approval on all file writes and shell commands
+    - `auto-edit` - Agent can write files but asks before running commands
+    - `full-auto` - Agent can write files and run commands (sandboxed)
+  </Accordion>
+  
+  <Accordion title="/sandbox - Change Sandbox Mode" icon="lock">
+    Adjust the sandbox policy for the current session.
+    
+    ```bash
+    /sandbox read-only
+    /sandbox workspace-write
+    /sandbox danger-full-access
+    ```
+    
+    See [Security & Sandboxing](/core-concepts/security) for details on each mode.
+  </Accordion>
+</AccordionGroup>
+
+### Information
+
+<AccordionGroup>
+  <Accordion title="/help - Show Help" icon="circle-question">
+    Display help information and available commands.
+    
+    ```bash
+    /help
+    ```
+  </Accordion>
+  
+  <Accordion title="/status - Show Session Status" icon="circle-info">
+    Display current configuration and session state.
+    
+    ```bash
+    /status
+    ```
+    
+    Shows:
+    - Current model
+    - Approval mode
+    - Sandbox mode
+    - Active skills
+    - Session information
+  </Accordion>
+</AccordionGroup>
+
+## Using Slash Commands
+
+### In the TUI
+
+Slash commands are entered at the prompt:
+
+```bash
+> /review
+> /use pdf-editor
+> /model gpt-4o
+```
+
+<Note>
+Press `Tab` for autocomplete suggestions when typing slash commands.
+</Note>
+
+### In Scripts
+
+You can pass slash commands in non-interactive mode:
+
+```bash
+codex exec "/review" --ephemeral
+```
+
+## Command Aliases
+
+Some commands have shorter aliases for convenience:
+
+| Command | Alias |
+|---------|-------|
+| `/review` | `/r` |
+| `/clear` | `/c` |
+| `/help` | `/h` |
+| `/status` | `/s` |
+
+## Advanced Usage
+
+### Combining Commands
+
+You can chain multiple commands in a single session:
+
+```bash
+> /clear
+> /model gpt-4o
+> /approval full-auto
+> "Now refactor the authentication module"
+```
+
+### Commands in AGENTS.md
+
+You can include default slash commands in your `AGENTS.md` project documentation:
+
+```markdown
+# Project Configuration
+
+Always use the following settings:
+- Model: gpt-4o
+- Approval: auto-edit
+```
+
+This sets project-specific defaults without requiring manual slash commands each time.
+
+## Creating Custom Commands
+
+While Codex doesn't currently support custom slash commands, you can achieve similar behavior using:
+
+1. **Skills** - Create a skill that triggers on specific phrases
+2. **AGENTS.md** - Add project-specific instructions
+3. **Aliases** - Use shell aliases to wrap common command patterns
+
+### Example: Custom Workflow Alias
+
+```bash
+# In your shell config (.bashrc, .zshrc, etc.)
+alias codex-review='codex exec "/review"'
+alias codex-fast='codex --model gpt-4o-mini --approval full-auto'
+```
+
+Then use:
+
+```bash
+codex-review
+codex-fast "write unit tests"
+```
+
+## Command Reference
+
+<CardGroup cols={2}>
+  <Card title="Workflow" icon="diagram-project">
+    - `/review` - Code review mode
+    - `/use` - Load a skill
+    - `/apps` - Manage app connectors
+  </Card>
+  
+  <Card title="Session" icon="window">
+    - `/clear` - Clear history
+    - `/reset` - Full reset
+  </Card>
+  
+  <Card title="Configuration" icon="gear">
+    - `/model` - Switch model
+    - `/approval` - Change approval mode
+    - `/sandbox` - Change sandbox mode
+  </Card>
+  
+  <Card title="Information" icon="circle-info">
+    - `/help` - Show help
+    - `/status` - Show status
+  </Card>
+</CardGroup>
+
+## Keyboard Shortcuts
+
+While not slash commands, these keyboard shortcuts work in the TUI:
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+C` | Cancel current operation (press twice to quit) |
+| `Ctrl+D` | Exit Codex (press twice if needed) |
+| `Tab` | Autocomplete slash commands |
+| `↑` / `↓` | Navigate command history |
+| `Ctrl+L` | Clear screen (not history) |
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use /clear between unrelated tasks">
+    Starting a new task? Use `/clear` to remove irrelevant context from the previous task. This helps Codex focus on what matters.
+  </Accordion>
+  
+  <Accordion title="Configure approval mode per task">
+    For exploratory tasks, use `/approval suggest` to review each action. For well-defined tasks in sandboxed environments, use `/approval full-auto` for speed.
+  </Accordion>
+  
+  <Accordion title="Explicitly load skills for complex tasks">
+    If you know you need a specific skill, use `/use skill-name` at the start to ensure it's loaded, rather than relying on automatic triggering.
+  </Accordion>
+  
+  <Accordion title="Check /status when debugging">
+    If Codex behaves unexpectedly, use `/status` to verify your current configuration.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Code Review" icon="magnifying-glass" href="/features/code-review">
+    Learn more about the `/review` command
+  </Card>
+  
+  <Card title="Skills System" icon="puzzle-piece" href="/features/skills">
+    Understand how skills work with `/use`
+  </Card>
+</CardGroup>

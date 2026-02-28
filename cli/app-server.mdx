@@ -1,0 +1,295 @@
+---
+title: codex app-server
+description: Start Codex as an app server for IDE integrations
+---
+
+## Syntax
+
+```bash
+codex app-server [OPTIONS]
+```
+
+## Description
+
+The `app-server` command starts Codex as a JSON-RPC server for IDE integrations. This is primarily used by the VS Code extension and other editor plugins.
+
+<Note>
+Most users don't need to run this command directly. It's automatically started by IDE extensions like the VS Code Codex extension.
+</Note>
+
+## Usage
+
+### Start with stdio Transport (Default)
+
+```bash
+codex app-server
+```
+
+Communicates over stdin/stdout using JSON-RPC.
+
+### Start with WebSocket Transport
+
+```bash
+codex app-server --listen ws://127.0.0.1:4500
+```
+
+Starts a WebSocket server for multiple client connections.
+
+## Options
+
+<ParamField path="--listen" type="string" default="stdio://">
+  Transport endpoint URL. Supported values:
+  - `stdio://` - Standard input/output (default)
+  - `ws://IP:PORT` - WebSocket server
+  
+  Examples:
+  - `stdio://`
+  - `ws://127.0.0.1:4500`
+  - `ws://0.0.0.0:8080`
+</ParamField>
+
+<ParamField path="--analytics-default-enabled" type="boolean" default="false">
+  Enable analytics by default. Analytics are disabled for app-server unless explicitly enabled.
+  
+  Users can still opt out in `config.toml`:
+  ```toml
+  [analytics]
+  enabled = false
+  ```
+</ParamField>
+
+## Examples
+
+### stdio Transport
+
+```bash
+# Start with stdio (used by VS Code extension)
+codex app-server
+
+# With analytics enabled
+codex app-server --analytics-default-enabled
+```
+
+### WebSocket Transport
+
+```bash
+# Local WebSocket server
+codex app-server --listen ws://127.0.0.1:4500
+
+# Bind to all interfaces
+codex app-server --listen ws://0.0.0.0:8080
+
+# Custom port
+codex app-server --listen ws://127.0.0.1:9999
+```
+
+### IDE Integration
+
+VS Code extension typically starts the app-server automatically:
+
+```json
+// settings.json
+{
+  "codex.serverCommand": "codex",
+  "codex.serverArgs": ["app-server", "--listen", "ws://127.0.0.1:4500"]
+}
+```
+
+## Transport Types
+
+### stdio (Default)
+
+**When to use:**
+- Single client connections
+- VS Code and editor extensions
+- Process-based communication
+
+**Characteristics:**
+- One client per server instance
+- Communicates via stdin/stdout
+- Terminates when client disconnects
+
+### WebSocket
+
+**When to use:**
+- Multiple concurrent clients
+- Remote connections
+- Web-based interfaces
+
+**Characteristics:**
+- Multiple clients per server
+- Network-based communication
+- Persists after client disconnects
+
+## Protocol
+
+The app-server uses JSON-RPC 2.0 over the specified transport. It implements the Codex App Server Protocol v2.
+
+### Example Request
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "thread/start",
+  "params": {
+    "cwd": "/path/to/project"
+  }
+}
+```
+
+### Example Response
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "threadId": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+## Subcommands
+
+The `app-server` command has experimental subcommands for protocol development:
+
+### generate-ts
+
+Generate TypeScript bindings for the app server protocol:
+
+```bash
+codex app-server generate-ts --out ./generated
+codex app-server generate-ts --out ./generated --prettier ./node_modules/.bin/prettier
+codex app-server generate-ts --out ./generated --experimental
+```
+
+<ParamField path="--out, -o" type="path" required>
+  Output directory for generated TypeScript files.
+</ParamField>
+
+<ParamField path="--prettier, -p" type="path">
+  Path to Prettier executable for formatting generated files.
+</ParamField>
+
+<ParamField path="--experimental" type="boolean">
+  Include experimental API methods and fields in generated types.
+</ParamField>
+
+### generate-json-schema
+
+Generate JSON Schema for the app server protocol:
+
+```bash
+codex app-server generate-json-schema --out ./schemas
+codex app-server generate-json-schema --out ./schemas --experimental
+```
+
+<ParamField path="--out, -o" type="path" required>
+  Output directory for schema bundle.
+</ParamField>
+
+<ParamField path="--experimental" type="boolean">
+  Include experimental API surface in generated schema.
+</ParamField>
+
+## Configuration
+
+The app-server respects all standard Codex configuration in `~/.codex/config.toml`:
+
+```toml
+# Model settings
+model = "gpt-4.1"
+
+# Permissions
+[permissions]
+approval_policy = "on-request"
+sandbox_policy = "workspace-write"
+
+# Analytics (opt-out)
+[analytics]
+enabled = false
+```
+
+## Graceful Shutdown
+
+### stdio Mode
+
+The server shuts down when stdin closes (client disconnects).
+
+### WebSocket Mode
+
+The server handles graceful shutdown on Ctrl+C:
+
+1. Stops accepting new connections
+2. Waits for running assistant turns to complete
+3. Disconnects all clients
+4. Exits
+
+Press Ctrl+C twice to force immediate shutdown.
+
+## Logging
+
+App-server logs to stderr. Control log level with `RUST_LOG`:
+
+```bash
+# Error-level logs only (default)
+RUST_LOG=error codex app-server
+
+# Info-level logs
+RUST_LOG=info codex app-server
+
+# Debug-level logs
+RUST_LOG=debug codex app-server
+
+# JSON-formatted logs
+LOG_FORMAT=json RUST_LOG=info codex app-server
+```
+
+## Troubleshooting
+
+### Port Already in Use
+
+If WebSocket port is in use:
+
+```bash
+# Check what's using the port
+lsof -i :4500
+
+# Use a different port
+codex app-server --listen ws://127.0.0.1:4501
+```
+
+### Connection Issues
+
+For WebSocket connection problems:
+
+1. Verify server is running:
+   ```bash
+   lsof -i :4500
+   ```
+
+2. Test connection:
+   ```bash
+   curl -i -N -H "Connection: Upgrade" \
+     -H "Upgrade: websocket" \
+     -H "Sec-WebSocket-Version: 13" \
+     -H "Sec-WebSocket-Key: test" \
+     http://127.0.0.1:4500
+   ```
+
+3. Check firewall settings
+
+### stdio Issues
+
+For stdio communication problems:
+
+1. Ensure client is sending JSON-RPC messages
+2. Check stderr for error logs
+3. Verify stdin/stdout aren't being buffered
+
+## Related Resources
+
+- [VS Code Extension](https://marketplace.visualstudio.com/items?itemName=OpenAI.codex)
+- [App Server Protocol Documentation](https://developers.openai.com/codex/app-server-protocol)
+- [Building Editor Integrations](https://developers.openai.com/codex/ide-integrations)

@@ -1,0 +1,541 @@
+---
+title: 'Turns'
+description: 'Turn lifecycle and control APIs'
+---
+
+A **Turn** represents one round of conversation, typically starting with a user message and finishing with an agent message. Each turn contains multiple items that stream as notifications.
+
+## Turn Object
+
+<ResponseField name="id" type="string">
+  Unique turn identifier (e.g., `turn_456`)
+</ResponseField>
+
+<ResponseField name="items" type="ThreadItem[]">
+  Array of items in this turn
+  
+  <Note>
+  Only populated on `thread/resume` or `thread/fork` responses. For all other responses and notifications, this field is an empty array. Use `item/*` notifications to track items.
+  </Note>
+</ResponseField>
+
+<ResponseField name="status" type="TurnStatus">
+  Current turn status
+  
+  - `inProgress` - Turn is actively running
+  - `completed` - Turn finished successfully
+  - `interrupted` - Turn was cancelled
+  - `failed` - Turn encountered an error
+</ResponseField>
+
+<ResponseField name="error" type="TurnError | null">
+  Error details (only populated when `status` is `failed`)
+  
+  <Expandable title="TurnError properties">
+    <ResponseField name="message" type="string">
+      Human-readable error message
+    </ResponseField>
+    
+    <ResponseField name="codexErrorInfo" type="CodexErrorInfo">
+      Structured error classification
+      
+      Common values:
+      - `ContextWindowExceeded`
+      - `UsageLimitExceeded`
+      - `HttpConnectionFailed`
+      - `ResponseStreamDisconnected`
+      - `Unauthorized`
+      - `BadRequest`
+      - `InternalServerError`
+      - `Other`
+    </ResponseField>
+    
+    <ResponseField name="additionalDetails" type="string">
+      Additional error context
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Start a Turn
+
+Send user input to a thread and begin Codex generation.
+
+### Method
+
+```
+turn/start
+```
+
+### Parameters
+
+<ParamField path="threadId" type="string" required>
+  Thread ID to add the turn to
+</ParamField>
+
+<ParamField path="input" type="UserInput[]" required>
+  Array of user input items
+  
+  <Expandable title="UserInput types">
+    **Text input:**
+    ```json
+    { "type": "text", "text": "Run tests" }
+    ```
+    
+    **Image from URL:**
+    ```json
+    { "type": "image", "url": "https://example.com/image.png" }
+    ```
+    
+    **Local image:**
+    ```json
+    { "type": "localImage", "path": "/tmp/screenshot.png" }
+    ```
+    
+    **Skill invocation:**
+    ```json
+    {
+      "type": "skill",
+      "name": "skill-creator",
+      "path": "/Users/me/.codex/skills/skill-creator/SKILL.md"
+    }
+    ```
+    
+    **App mention:**
+    ```json
+    {
+      "type": "mention",
+      "name": "Demo App",
+      "path": "app://demo-app"
+    }
+    ```
+  </Expandable>
+</ParamField>
+
+<ParamField path="cwd" type="string">
+  Override working directory for this turn and subsequent turns
+</ParamField>
+
+<ParamField path="approvalPolicy" type="string">
+  Override approval policy
+</ParamField>
+
+<ParamField path="sandboxPolicy" type="SandboxPolicy">
+  Override sandbox policy
+  
+  <Expandable title="SandboxPolicy types">
+    **Danger full access:**
+    ```json
+    { "type": "dangerFullAccess" }
+    ```
+    
+    **Read-only:**
+    ```json
+    {
+      "type": "readOnly",
+      "access": {
+        "type": "fullAccess"
+      }
+    }
+    ```
+    
+    **Workspace write:**
+    ```json
+    {
+      "type": "workspaceWrite",
+      "writableRoots": ["/Users/me/project"],
+      "networkAccess": true
+    }
+    ```
+    
+    **External sandbox:**
+    ```json
+    {
+      "type": "externalSandbox",
+      "networkAccess": "enabled"
+    }
+    ```
+  </Expandable>
+</ParamField>
+
+<ParamField path="model" type="string">
+  Override model for this turn and subsequent turns
+</ParamField>
+
+<ParamField path="effort" type="string">
+  Override reasoning effort (`low`, `medium`, `high`)
+</ParamField>
+
+<ParamField path="summary" type="string">
+  Override reasoning summary mode (`concise`, `verbose`)
+</ParamField>
+
+<ParamField path="outputSchema" type="object">
+  JSON Schema to constrain the final assistant message (applies only to this turn)
+  
+  ```json
+  {
+    "type": "object",
+    "properties": {
+      "answer": { "type": "string" }
+    },
+    "required": ["answer"],
+    "additionalProperties": false
+  }
+  ```
+</ParamField>
+
+### Response
+
+<ResponseField name="turn" type="Turn">
+  Initial turn object with `status: "inProgress"` and empty `items` array
+</ResponseField>
+
+### Notifications
+
+The server streams JSON-RPC notifications while the turn is running:
+
+<Steps>
+  <Step title="turn/started">
+    Initial turn notification
+    
+    ```json
+    {
+      "method": "turn/started",
+      "params": {
+        "threadId": "thr_123",
+        "turn": {
+          "id": "turn_456",
+          "status": "inProgress",
+          "items": [],
+          "error": null
+        }
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="item/* notifications">
+    See [Items](/api/items) for full item lifecycle
+    
+    - `item/started` - New item begins
+    - `item/agentMessage/delta` - Streamed text
+    - `item/completed` - Item finishes
+  </Step>
+  
+  <Step title="turn/completed">
+    Final turn notification with status
+    
+    ```json
+    {
+      "method": "turn/completed",
+      "params": {
+        "threadId": "thr_123",
+        "turn": {
+          "id": "turn_456",
+          "status": "completed",
+          "items": [],
+          "error": null
+        }
+      }
+    }
+    ```
+  </Step>
+</Steps>
+
+### Example: Basic Turn
+
+<CodeGroup>
+```json Request
+{
+  "method": "turn/start",
+  "id": 30,
+  "params": {
+    "threadId": "thr_123",
+    "input": [
+      { "type": "text", "text": "Run tests" }
+    ]
+  }
+}
+```
+
+```json Response
+{
+  "id": 30,
+  "result": {
+    "turn": {
+      "id": "turn_456",
+      "status": "inProgress",
+      "items": [],
+      "error": null
+    }
+  }
+}
+```
+</CodeGroup>
+
+### Example: Invoke a Skill
+
+Include `$<skill-name>` in the text input and add a `skill` input item.
+
+<CodeGroup>
+```json Request
+{
+  "method": "turn/start",
+  "id": 33,
+  "params": {
+    "threadId": "thr_123",
+    "input": [
+      {
+        "type": "text",
+        "text": "$skill-creator Add a new skill for triaging flaky CI"
+      },
+      {
+        "type": "skill",
+        "name": "skill-creator",
+        "path": "/Users/me/.codex/skills/skill-creator/SKILL.md"
+      }
+    ]
+  }
+}
+```
+
+```json Response
+{
+  "id": 33,
+  "result": {
+    "turn": {
+      "id": "turn_457",
+      "status": "inProgress",
+      "items": [],
+      "error": null
+    }
+  }
+}
+```
+</CodeGroup>
+
+### Example: Invoke an App
+
+Include `$<app-slug>` in text and add a `mention` input with `app://<connector-id>`.
+
+<CodeGroup>
+```json Request
+{
+  "method": "turn/start",
+  "id": 34,
+  "params": {
+    "threadId": "thr_123",
+    "input": [
+      {
+        "type": "text",
+        "text": "$demo-app Summarize the latest updates."
+      },
+      {
+        "type": "mention",
+        "name": "Demo App",
+        "path": "app://demo-app"
+      }
+    ]
+  }
+}
+```
+
+```json Response
+{
+  "id": 34,
+  "result": {
+    "turn": {
+      "id": "turn_458",
+      "status": "inProgress",
+      "items": [],
+      "error": null
+    }
+  }
+}
+```
+</CodeGroup>
+
+## Interrupt a Turn
+
+Cancel a running turn.
+
+### Method
+
+```
+turn/interrupt
+```
+
+### Parameters
+
+<ParamField path="threadId" type="string" required>
+  Thread ID
+</ParamField>
+
+<ParamField path="turnId" type="string" required>
+  Turn ID to interrupt
+</ParamField>
+
+### Response
+
+<ResponseField name="{}" type="object">
+  Empty object on success
+</ResponseField>
+
+### Notifications
+
+After interruption, the server emits `turn/completed` with `status: "interrupted"`.
+
+### Example
+
+<CodeGroup>
+```json Request
+{
+  "method": "turn/interrupt",
+  "id": 31,
+  "params": {
+    "threadId": "thr_123",
+    "turnId": "turn_456"
+  }
+}
+```
+
+```json Response
+{
+  "id": 31,
+  "result": {}
+}
+```
+
+```json Notification
+{
+  "method": "turn/completed",
+  "params": {
+    "threadId": "thr_123",
+    "turn": {
+      "id": "turn_456",
+      "status": "interrupted",
+      "items": [],
+      "error": null
+    }
+  }
+}
+```
+</CodeGroup>
+
+## Steer a Turn
+
+Append additional user input to a currently active turn without starting a new turn.
+
+### Method
+
+```
+turn/steer
+```
+
+### Parameters
+
+<ParamField path="threadId" type="string" required>
+  Thread ID
+</ParamField>
+
+<ParamField path="input" type="UserInput[]" required>
+  Additional user input to append
+</ParamField>
+
+<ParamField path="expectedTurnId" type="string" required>
+  Required active turn ID precondition. Fails if no active turn or ID doesn't match.
+</ParamField>
+
+### Response
+
+<ResponseField name="turnId" type="string">
+  The active turn ID that accepted the input
+</ResponseField>
+
+### Example
+
+<CodeGroup>
+```json Request
+{
+  "method": "turn/steer",
+  "id": 32,
+  "params": {
+    "threadId": "thr_123",
+    "input": [
+      { "type": "text", "text": "Actually focus on failing tests first." }
+    ],
+    "expectedTurnId": "turn_456"
+  }
+}
+```
+
+```json Response
+{
+  "id": 32,
+  "result": {
+    "turnId": "turn_456"
+  }
+}
+```
+</CodeGroup>
+
+## Turn Notifications
+
+<ResponseField name="turn/started">
+  Emitted when a turn begins
+  
+  **Payload:** `{ threadId: string, turn: Turn }`
+</ResponseField>
+
+<ResponseField name="turn/completed">
+  Emitted when a turn finishes (completed, interrupted, or failed)
+  
+  **Payload:** `{ threadId: string, turn: Turn }`
+</ResponseField>
+
+<ResponseField name="turn/diff/updated">
+  Emitted after every `fileChange` item with turn-level unified diff
+  
+  **Payload:** `{ threadId: string, turnId: string, diff: string }`
+</ResponseField>
+
+<ResponseField name="turn/plan/updated">
+  Emitted when the agent shares or changes its plan
+  
+  **Payload:**
+  ```json
+  {
+    "threadId": "thr_123",
+    "turnId": "turn_456",
+    "explanation": "Breaking down the task...",
+    "plan": [
+      { "step": "Run tests", "status": "completed" },
+      { "step": "Fix errors", "status": "inProgress" },
+      { "step": "Commit changes", "status": "pending" }
+    ]
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="model/rerouted">
+  Emitted when the backend reroutes to a different model
+  
+  **Payload:** `{ threadId: string, turnId: string, fromModel: string, toModel: string, reason: string }`
+</ResponseField>
+
+<ResponseField name="error">
+  Emitted on mid-turn errors
+  
+  **Payload:** `{ error: TurnError, willRetry: boolean, threadId: string, turnId: string }`
+</ResponseField>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Items" icon="list" href="/api/items">
+    Understand item types and streaming notifications
+  </Card>
+  <Card title="Models" icon="brain" href="/api/models">
+    List available models and their capabilities
+  </Card>
+</CardGroup>

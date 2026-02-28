@@ -1,0 +1,501 @@
+---
+title: MCP Servers
+description: Configure Model Context Protocol (MCP) servers to extend Codex with custom tools and integrations
+---
+
+Model Context Protocol (MCP) servers allow you to extend Codex with custom tools, resources, and integrations. This guide shows you how to configure and use MCP servers with Codex.
+
+## What are MCP Servers?
+
+MCP servers are processes that expose tools, resources, and prompts that Codex can use. They communicate over the Model Context Protocol, providing:
+
+- **Custom tools** - Extend Codex with domain-specific operations
+- **Resources** - Provide access to external data sources
+- **Prompts** - Add specialized prompt templates
+- **OAuth integration** - Secure authentication for external services
+
+## Configuration Location
+
+MCP servers are configured in `~/.codex/config.toml` under the `[mcp_servers]` section:
+
+```toml
+[mcp_servers.my-server]
+command = "npx"
+args = ["-y", "@my-org/my-mcp-server"]
+enabled = true
+```
+
+## Server Transport Types
+
+MCP servers can connect via two transport mechanisms:
+
+### Stdio Transport (Local)
+
+Run a local process that communicates over stdin/stdout:
+
+```toml
+[mcp_servers.filesystem]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/data"]
+enabled = true
+
+[mcp_servers.filesystem.env]
+DEBUG = "mcp:*"
+```
+
+### Streamable HTTP Transport (Remote)
+
+Connect to a remote MCP server over HTTP:
+
+```toml
+[mcp_servers.remote-server]
+url = "https://mcp.example.com"
+bearer_token_env_var = "MCP_TOKEN"
+enabled = true
+```
+
+## Configuration Options
+
+<ParamField path="command" type="string">
+  Executable command to launch the MCP server (stdio only)
+</ParamField>
+
+<ParamField path="args" type="array">
+  Arguments to pass to the command (stdio only)
+</ParamField>
+
+<ParamField path="url" type="string">
+  URL for streamable HTTP MCP server (HTTP only)
+</ParamField>
+
+<ParamField path="enabled" type="boolean" default="true">
+  Whether the server is enabled. Set to `false` to disable without removing config.
+</ParamField>
+
+<ParamField path="required" type="boolean" default="false">
+  If `true`, Codex will fail to start if this server cannot connect
+</ParamField>
+
+<ParamField path="env" type="object">
+  Environment variables to set when launching the server (stdio only)
+</ParamField>
+
+<ParamField path="env_vars" type="array">
+  List of environment variable names to inherit from parent process
+</ParamField>
+
+<ParamField path="cwd" type="string">
+  Working directory for the server process (stdio only)
+</ParamField>
+
+<ParamField path="bearer_token_env_var" type="string">
+  Environment variable containing bearer token for authentication (HTTP only)
+</ParamField>
+
+<ParamField path="http_headers" type="object">
+  Static HTTP headers to include in requests (HTTP only)
+</ParamField>
+
+<ParamField path="env_http_headers" type="object">
+  HTTP headers with values from environment variables (HTTP only)
+</ParamField>
+
+<ParamField path="startup_timeout_sec" type="number">
+  Maximum time to wait for server startup (seconds)
+</ParamField>
+
+<ParamField path="tool_timeout_sec" type="number">
+  Maximum time to wait for tool execution (seconds)
+</ParamField>
+
+<ParamField path="enabled_tools" type="array">
+  If set, only these tools are exposed (whitelist)
+</ParamField>
+
+<ParamField path="disabled_tools" type="array">
+  List of tools to disable (blacklist)
+</ParamField>
+
+<ParamField path="scopes" type="array">
+  OAuth scopes to request during authentication
+</ParamField>
+
+<ParamField path="oauth_resource" type="string">
+  OAuth resource identifier for this server
+</ParamField>
+
+## Managing MCP Servers
+
+Codex provides CLI commands for managing MCP server configurations:
+
+### List Configured Servers
+
+```bash
+# List all configured MCP servers
+codex mcp list
+
+# Output as JSON
+codex mcp list --json
+```
+
+### Add a Server
+
+```bash
+# Add a stdio server
+codex mcp add my-server -- npx -y @my-org/my-mcp-server
+
+# Add with environment variables
+codex mcp add my-server --env DEBUG=mcp:* -- npx -y @my-org/my-server
+
+# Add a remote HTTP server
+codex mcp add remote-server --url https://mcp.example.com --bearer-token-env-var MCP_TOKEN
+```
+
+### Get Server Details
+
+```bash
+# Show server configuration
+codex mcp get my-server
+
+# Output as JSON
+codex mcp get my-server --json
+```
+
+### Remove a Server
+
+```bash
+codex mcp remove my-server
+```
+
+## OAuth Authentication
+
+Some MCP servers require OAuth authentication. Codex provides built-in OAuth flow support:
+
+### Login to an MCP Server
+
+```bash
+# Authenticate with default scopes
+codex mcp login my-server
+
+# Authenticate with specific scopes
+codex mcp login my-server --scopes read,write
+```
+
+Codex will:
+1. Open your browser to the OAuth authorization page
+2. Start a local callback server
+3. Receive the authorization code
+4. Exchange it for tokens
+5. Store credentials securely
+
+### Logout from an MCP Server
+
+```bash
+codex mcp logout my-server
+```
+
+This removes stored OAuth credentials.
+
+### OAuth Credential Storage
+
+Configure where OAuth tokens are stored:
+
+```toml
+mcp_oauth_credentials_store = "auto"
+```
+
+<ParamField path="mcp_oauth_credentials_store" type="string" default="auto">
+  Where to store MCP OAuth credentials.
+  
+  **Options:**
+  - `"auto"` - Prefer OS keyring, fallback to file
+  - `"keyring"` - Use OS keyring (most secure)
+  - `"file"` - Store in `~/.codex/.credentials.json`
+</ParamField>
+
+### OAuth Callback Configuration
+
+```toml
+mcp_oauth_callback_port = 3000
+mcp_oauth_callback_url = "http://localhost:3000/callback"
+```
+
+<ParamField path="mcp_oauth_callback_port" type="integer">
+  Fixed port for OAuth callback server. When unset, uses ephemeral port.
+</ParamField>
+
+<ParamField path="mcp_oauth_callback_url" type="string">
+  Redirect URI to use in OAuth flow. Local listener still binds to 127.0.0.1.
+</ParamField>
+
+## Tool Control
+
+### Whitelist Specific Tools
+
+Only enable specific tools from a server:
+
+```toml
+[mcp_servers.my-server]
+command = "npx"
+args = ["-y", "@my-org/my-server"]
+enabled_tools = ["read_file", "write_file"]
+```
+
+### Blacklist Specific Tools
+
+Disable specific tools:
+
+```toml
+[mcp_servers.my-server]
+command = "npx"
+args = ["-y", "@my-org/my-server"]
+disabled_tools = ["delete_file", "execute_command"]
+```
+
+<Note>
+  If both `enabled_tools` and `disabled_tools` are set, `enabled_tools` takes precedence (whitelist mode).
+</Note>
+
+## Example Configurations
+
+### Filesystem MCP Server
+
+Provide Codex access to local filesystem:
+
+```toml
+[mcp_servers.filesystem]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-filesystem", "/Users/me/projects"]
+enabled = true
+startup_timeout_sec = 30
+```
+
+### GitHub MCP Server
+
+Integrate with GitHub repositories:
+
+```toml
+[mcp_servers.github]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-github"]
+enabled = true
+scopes = ["repo", "read:user"]
+
+[mcp_servers.github.env]
+GITHUB_PERSONAL_ACCESS_TOKEN = "${GITHUB_TOKEN}"
+```
+
+Then authenticate:
+
+```bash
+codex mcp login github --scopes repo,read:user
+```
+
+### Slack MCP Server
+
+Connect to Slack workspace:
+
+```toml
+[mcp_servers.slack]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-slack"]
+enabled = true
+scopes = ["channels:read", "channels:history", "chat:write"]
+```
+
+### Database MCP Server
+
+Query PostgreSQL databases:
+
+```toml
+[mcp_servers.postgres]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-postgres"]
+enabled = true
+
+[mcp_servers.postgres.env]
+DATABASE_URL = "postgresql://user:pass@localhost/mydb"
+```
+
+### Custom HTTP MCP Server
+
+Connect to a remote custom server:
+
+```toml
+[mcp_servers.custom-api]
+url = "https://mcp.mycompany.com/api"
+bearer_token_env_var = "COMPANY_MCP_TOKEN"
+enabled = true
+tool_timeout_sec = 60
+
+[mcp_servers.custom-api.http_headers]
+"X-Organization-ID" = "org-123"
+```
+
+Set the token:
+
+```bash
+export COMPANY_MCP_TOKEN="your-token-here"
+```
+
+## App-Level Tool Controls
+
+Codex also provides app-level controls for MCP tools:
+
+```toml
+[apps.github]
+enabled = true
+default_tools_enabled = true
+default_tools_approval_mode = "auto"
+destructive_enabled = false
+open_world_enabled = true
+
+[apps.github.tools.delete_repo]
+enabled = false
+approval_mode = "prompt"
+```
+
+<ParamField path="apps.<name>.enabled" type="boolean" default="true">
+  Enable or disable the entire app/connector
+</ParamField>
+
+<ParamField path="apps.<name>.default_tools_enabled" type="boolean">
+  Whether tools are enabled by default for this app
+</ParamField>
+
+<ParamField path="apps.<name>.default_tools_approval_mode" type="string">
+  Default approval mode: `"auto"`, `"prompt"`, or `"approve"`
+</ParamField>
+
+<ParamField path="apps.<name>.destructive_enabled" type="boolean">
+  Allow tools marked as destructive
+</ParamField>
+
+<ParamField path="apps.<name>.open_world_enabled" type="boolean">
+  Allow tools with open world access hints
+</ParamField>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Server fails to start">
+    - Check that the command and args are correct
+    - Verify the executable is in PATH or use absolute path
+    - Check `startup_timeout_sec` if server is slow to start
+    - Review server logs (set `DEBUG=mcp:*` in env)
+    - Ensure required environment variables are set
+  </Accordion>
+  
+  <Accordion title="OAuth login fails">
+    - Verify the server supports OAuth
+    - Check that callback port is not blocked by firewall
+    - Ensure browser can reach callback URL
+    - Try specifying a fixed port with `mcp_oauth_callback_port`
+    - Check server OAuth configuration and scopes
+  </Accordion>
+  
+  <Accordion title="Tools not appearing">
+    - Verify server is enabled (`enabled = true`)
+    - Check if tools are in `disabled_tools` list
+    - If using `enabled_tools`, ensure tools are listed
+    - Verify server process is running successfully
+    - Check that server implements MCP protocol correctly
+  </Accordion>
+  
+  <Accordion title="Tool execution timeouts">
+    - Increase `tool_timeout_sec` for slow operations
+    - Check network connectivity for HTTP servers
+    - Review server implementation for performance issues
+    - Verify server is not rate-limited or throttled
+  </Accordion>
+  
+  <Accordion title="Environment variables not working">
+    - For stdio servers, use `env` section to set variables
+    - For HTTP servers, use `env_http_headers` for header values
+    - Check environment variable names for typos
+    - Verify variables are exported in your shell
+    - Use `env_vars` to inherit specific parent environment variables
+  </Accordion>
+</AccordionGroup>
+
+## Security Considerations
+
+<Warning>
+  MCP servers run with the same permissions as Codex and can access files and networks. Only use trusted MCP servers.
+</Warning>
+
+### Best Practices
+
+1. **Review server code** - Inspect open-source servers before use
+2. **Use tool whitelisting** - Enable only necessary tools with `enabled_tools`
+3. **Disable destructive operations** - Set `destructive_enabled = false` for apps
+4. **Use OAuth when available** - More secure than static API keys
+5. **Store credentials securely** - Prefer keyring over file storage
+6. **Set timeouts** - Prevent hung operations with `tool_timeout_sec`
+7. **Monitor server logs** - Watch for unexpected behavior
+8. **Keep servers updated** - Update MCP servers regularly
+
+## Complete Configuration Example
+
+```toml
+# OAuth credential storage
+mcp_oauth_credentials_store = "auto"
+mcp_oauth_callback_port = 3000
+
+# MCP servers
+[mcp_servers.filesystem]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-filesystem", "/Users/me/projects"]
+enabled = true
+startup_timeout_sec = 30
+tool_timeout_sec = 120
+
+[mcp_servers.github]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-github"]
+enabled = true
+scopes = ["repo", "read:user"]
+required = false
+
+[mcp_servers.github.env]
+DEBUG = "mcp:*"
+
+[mcp_servers.slack]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-slack"]
+enabled = false  # Disabled by default
+scopes = ["channels:read", "chat:write"]
+
+[mcp_servers.custom-api]
+url = "https://mcp.example.com/api"
+bearer_token_env_var = "MCP_TOKEN"
+enabled = true
+tool_timeout_sec = 60
+
+[mcp_servers.custom-api.http_headers]
+"X-API-Version" = "2024-01"
+
+# App-level controls
+[apps.github]
+enabled = true
+default_tools_approval_mode = "auto"
+destructive_enabled = false
+
+[apps.github.tools.delete_repo]
+enabled = false
+
+[apps.slack]
+enabled = true
+default_tools_approval_mode = "prompt"
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration Reference" icon="book" href="/configuration/reference">
+    Complete reference of all configuration options
+  </Card>
+  <Card title="Building MCP Servers" icon="code" href="https://modelcontextprotocol.io">
+    Learn to build your own MCP servers
+  </Card>
+</CardGroup>

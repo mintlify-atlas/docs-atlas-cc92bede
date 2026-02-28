@@ -1,0 +1,436 @@
+---
+title: Non-interactive mode
+description: Run Codex headlessly for automation and CI/CD integration
+---
+
+Non-interactive mode allows you to run Codex without the terminal UI, making it ideal for automation, scripts, and CI/CD pipelines. Use the `exec` and `review` commands for headless execution.
+
+## The exec command
+
+Run a one-off task without the interactive TUI:
+
+<CodeGroup>
+```bash Basic usage
+codex exec "run the test suite and fix any failures"
+```
+
+```bash From stdin
+echo "analyze code coverage and suggest improvements" | codex exec
+```
+
+```bash With dash
+codex exec - <<EOF
+Please review the authentication flow and:
+1. Check for security issues
+2. Add rate limiting
+3. Improve error messages
+EOF
+```
+</CodeGroup>
+
+### Output formats
+
+By default, `exec` provides human-readable output with progress indicators. For programmatic use, enable JSON output:
+
+```bash
+codex exec --json "run tests" > events.jsonl
+```
+
+This streams JSONL (JSON Lines) events that you can parse:
+
+```jsonl
+{"method":"turn/started","params":{"turn":{"id":"turn_123","status":"inProgress"}}}
+{"method":"item/started","params":{"item":{"type":"agentMessage","id":"msg_1"}}}
+{"method":"item/agentMessage/delta","params":{"itemId":"msg_1","delta":"Running"}}
+{"method":"item/agentMessage/delta","params":{"itemId":"msg_1","delta":" tests..."}}
+{"method":"item/completed","params":{"item":{"type":"agentMessage","id":"msg_1","text":"Running tests..."}}}
+{"method":"turn/completed","params":{"turn":{"id":"turn_123","status":"completed"}}}
+```
+
+### Exit codes
+
+`codex exec` returns meaningful exit codes for automation:
+
+| Exit Code | Meaning |
+|-----------|----------|
+| `0` | Success - task completed |
+| `1` | General error |
+| `2` | Authentication failed |
+| `3` | Configuration error |
+| `4` | Model/API error |
+| `130` | Interrupted by user (Ctrl+C) |
+
+### Command options
+
+```bash
+codex exec [OPTIONS] [PROMPT]
+
+Options:
+  -m, --model <MODEL>              Model to use (e.g., gpt-5.2-codex)
+  -s, --sandbox <MODE>             Sandbox mode: read-only, workspace-write, danger-full-access
+  -C, --cd <DIR>                   Working directory
+  -i, --image <FILE>               Attach images (comma-separated)
+      --json                       Output JSONL events
+      --ephemeral                  Don't persist session to disk
+      --output-schema <FILE>       JSON Schema for structured output
+  -o, --output-last-message <FILE> Write final agent message to file
+      --color <WHEN>               Color output: auto, always, never
+      --full-auto                  Auto-approve with workspace-write sandbox
+      --yolo                       Bypass all approvals (DANGEROUS)
+```
+
+## The review command
+
+Request an automated code review from Codex:
+
+<CodeGroup>
+```bash Review uncommitted changes
+codex review
+```
+
+```bash Review specific commit
+codex review abc1234
+```
+
+```bash Review against base branch
+codex review --base main
+```
+
+```bash Custom review instructions
+codex review --instructions "Focus on security and performance"
+```
+</CodeGroup>
+
+### Review targets
+
+The review command supports multiple targets:
+
+<Tabs>
+  <Tab title="Uncommitted">
+    Review staged, unstaged, and untracked files:
+    ```bash
+    codex review
+    ```
+  </Tab>
+  <Tab title="Commit">
+    Review a specific commit by SHA:
+    ```bash
+    codex review 1234567
+    ```
+  </Tab>
+  <Tab title="Base branch">
+    Review changes since branching from main:
+    ```bash
+    codex review --base main
+    ```
+  </Tab>
+  <Tab title="Custom">
+    Provide free-form instructions:
+    ```bash
+    codex review --instructions "Check for SQL injection vulnerabilities"
+    ```
+  </Tab>
+</Tabs>
+
+### Review output
+
+Reviews produce structured feedback:
+
+```
+╭─ Code Review ──────────────────────────────────────────╮
+│ Overall: The changes look solid with minor suggestions │
+│                                                         │
+│ Findings:                                              │
+│                                                         │
+│ • Consider adding error handling — auth.ts:42-55       │
+│   The login function doesn't handle network failures    │
+│                                                         │
+│ • Extract magic number — config.ts:18                  │
+│   Use a named constant for the timeout value           │
+│                                                         │
+│ • Add input validation — api.ts:91                     │
+│   Validate user input before database queries          │
+╰─────────────────────────────────────────────────────────╯
+```
+
+## Resume and continue
+
+Non-interactive mode supports resuming previous sessions:
+
+<CodeGroup>
+```bash Resume last session
+codex exec resume --last "add more test cases"
+```
+
+```bash Resume by ID
+codex exec resume thr_abc123 "now deploy to staging"
+```
+
+```bash Resume with JSON output
+codex exec --json resume --last
+```
+</CodeGroup>
+
+## CI/CD integration
+
+Codex is designed to integrate seamlessly into automated workflows.
+
+### GitHub Actions
+
+<CodeGroup>
+```yaml Automated testing
+name: Codex Auto-fix
+on: [push]
+
+jobs:
+  auto-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Codex
+        run: |
+          curl -fsSL https://codex.openai.com/install.sh | sh
+          echo "$HOME/.codex/bin" >> $GITHUB_PATH
+      
+      - name: Run tests and auto-fix
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          codex exec --full-auto --json "run tests and fix any failures" | tee results.jsonl
+      
+      - name: Check success
+        run: |
+          if [ $? -ne 0 ]; then
+            echo "Codex failed to fix tests"
+            exit 1
+          fi
+```
+
+```yaml Code review
+name: Codex Review
+on: [pull_request]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Install Codex
+        run: |
+          curl -fsSL https://codex.openai.com/install.sh | sh
+          echo "$HOME/.codex/bin" >> $GITHUB_PATH
+      
+      - name: Run review
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          codex review --base origin/main -o review.txt
+      
+      - name: Post review
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const review = fs.readFileSync('review.txt', 'utf8');
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: '## Codex Review\n\n' + review
+            });
+```
+</CodeGroup>
+
+### GitLab CI
+
+```yaml .gitlab-ci.yml
+codex-review:
+  stage: test
+  image: ubuntu:latest
+  before_script:
+    - curl -fsSL https://codex.openai.com/install.sh | sh
+    - export PATH="$HOME/.codex/bin:$PATH"
+  script:
+    - codex review --base origin/main --json > review.jsonl
+  artifacts:
+    paths:
+      - review.jsonl
+    expire_in: 1 week
+  only:
+    - merge_requests
+```
+
+### Jenkins
+
+```groovy Jenkinsfile
+pipeline {
+    agent any
+    
+    environment {
+        OPENAI_API_KEY = credentials('openai-api-key')
+    }
+    
+    stages {
+        stage('Install Codex') {
+            steps {
+                sh 'curl -fsSL https://codex.openai.com/install.sh | sh'
+            }
+        }
+        
+        stage('Run Tests') {
+            steps {
+                sh '''
+                    export PATH="$HOME/.codex/bin:$PATH"
+                    codex exec --full-auto --json "run the test suite" > results.jsonl
+                '''
+            }
+        }
+        
+        stage('Analyze Results') {
+            steps {
+                script {
+                    def results = readJSON file: 'results.jsonl'
+                    // Process JSONL events
+                }
+            }
+        }
+    }
+}
+```
+
+## Structured output
+
+Constrain the agent's response to a specific JSON schema:
+
+```bash
+codex exec \
+  --output-schema schema.json \
+  --json \
+  "analyze test coverage"
+```
+
+**schema.json:**
+```json
+{
+  "type": "object",
+  "properties": {
+    "coverage_percentage": { "type": "number" },
+    "uncovered_files": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "recommendations": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "required": ["coverage_percentage", "uncovered_files", "recommendations"],
+  "additionalProperties": false
+}
+```
+
+The final agent message will conform to this schema.
+
+## Ephemeral sessions
+
+Run without persisting to disk:
+
+```bash
+codex exec --ephemeral "quick calculation: 2^16"
+```
+
+Useful for:
+- One-off queries
+- Sensitive data that shouldn't be logged
+- Reducing disk I/O in high-volume scenarios
+
+## Automation best practices
+
+<Steps>
+  <Step title="Use --full-auto for trusted environments">
+    In sandboxed CI runners, use `--full-auto` to auto-approve operations:
+    ```bash
+    codex exec --full-auto "install deps and run tests"
+    ```
+  </Step>
+  
+  <Step title="Enable JSON output for parsing">
+    Always use `--json` in automation to get structured events:
+    ```bash
+    codex exec --json "task" | jq -r 'select(.method=="turn/completed")'
+    ```
+  </Step>
+  
+  <Step title="Check exit codes">
+    Handle failures gracefully in scripts:
+    ```bash
+    if ! codex exec "run tests"; then
+      echo "Tests failed"
+      exit 1
+    fi
+    ```
+  </Step>
+  
+  <Step title="Capture final output">
+    Use `--output-last-message` for the agent's final response:
+    ```bash
+    codex exec -o result.txt "summarize changes"
+    cat result.txt
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+  Never use `--yolo` (dangerously bypass approvals) in production or on untrusted inputs. This disables all safety checks.
+</Warning>
+
+## Parsing JSONL output
+
+### Using jq
+
+```bash
+# Extract all agent messages
+codex exec --json "task" | jq -r 'select(.method=="item/agentMessage/delta") | .params.delta'
+
+# Get final turn status
+codex exec --json "task" | jq -r 'select(.method=="turn/completed") | .params.turn.status'
+
+# Count commands executed
+codex exec --json "task" | jq -r 'select(.method=="item/started" and .params.item.type=="commandExecution")' | wc -l
+```
+
+### Using Python
+
+```python
+import json
+import subprocess
+
+proc = subprocess.Popen(
+    ["codex", "exec", "--json", "run tests"],
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+    text=True
+)
+
+for line in proc.stdout:
+    event = json.loads(line)
+    if event["method"] == "item/commandExecution/outputDelta":
+        print(event["params"]["delta"], end="")
+    elif event["method"] == "turn/completed":
+        print(f"\nStatus: {event['params']['turn']['status']}")
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Interactive mode" icon="terminal" href="/concepts/interactive-mode">
+    Learn about the TUI for development
+  </Card>
+  <Card title="Sandboxing" icon="shield" href="/concepts/sandboxing">
+    Understand security in automation
+  </Card>
+</CardGroup>

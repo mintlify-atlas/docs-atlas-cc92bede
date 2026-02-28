@@ -1,0 +1,570 @@
+---
+title: "Custom Instructions"
+description: "Provide project-specific guidance and preferences to Codex"
+---
+
+## Overview
+
+Custom instructions let you provide Codex with context, preferences, and guidelines that persist across sessions. This is especially useful for:
+
+- Defining coding standards and style preferences
+- Documenting project-specific conventions
+- Providing context about architecture decisions
+- Setting workflow preferences
+
+<Tip>
+Think of custom instructions as a persistent system prompt that Codex reads at the start of every session.
+</Tip>
+
+## AGENTS.md Files
+
+Custom instructions are defined in `AGENTS.md` files. Codex looks for these files in three locations and merges them in order:
+
+<Steps>
+  <Step title="Global Instructions">
+    `~/.codex/AGENTS.md` - Personal preferences that apply to all projects
+    
+    Example use cases:
+    - Your preferred coding style
+    - Tools you always want to use
+    - Communication preferences
+  </Step>
+  
+  <Step title="Repository Instructions">
+    `AGENTS.md` at repo root - Team-wide project guidance
+    
+    Example use cases:
+    - Project architecture overview
+    - Team coding standards
+    - Important constraints or requirements
+    
+    <Info>
+    Commit this file to version control so all team members share the same context.
+    </Info>
+  </Step>
+  
+  <Step title="Directory Instructions">
+    `AGENTS.md` in current working directory - Subsystem-specific notes
+    
+    Example use cases:
+    - Feature-specific guidelines
+    - Module architecture notes
+    - Local development setup
+  </Step>
+</Steps>
+
+## File Format
+
+AGENTS.md files use standard Markdown format. Codex treats all content as guidance:
+
+```markdown AGENTS.md
+# Project Guidelines
+
+## Code Style
+
+- Use TypeScript for all new files
+- Prefer functional components with hooks
+- Always include JSDoc comments for exported functions
+
+## Architecture
+
+This project uses a feature-based folder structure:
+
+```
+src/
+  features/
+    auth/
+    dashboard/
+    settings/
+```
+
+## Testing
+
+- Write tests for all business logic
+- Use Vitest for unit tests
+- Place test files adjacent to source: `component.tsx` → `component.test.tsx`
+
+## Important
+
+Do NOT modify files in the `generated/` directory - they are auto-generated.
+```
+
+## Example Configurations
+
+### Personal Preferences
+
+```markdown ~/.codex/AGENTS.md
+# My Coding Preferences
+
+- I prefer verbose variable names over abbreviations
+- Always use `const` over `let` when possible
+- Add comments explaining the "why", not the "what"
+- Run prettier after making changes
+- Use conventional commits format: `type(scope): description`
+
+# Tools
+
+- Prefer `pnpm` over npm or yarn
+- Use `just` for task running instead of npm scripts
+```
+
+### Team Standards
+
+```markdown AGENTS.md (repo root)
+# Acme Corp - Frontend Guidelines
+
+## Tech Stack
+
+- React 18 + TypeScript
+- Vite for builds
+- TanStack Query for data fetching
+- Radix UI for components
+- Tailwind CSS for styling
+
+## Code Standards
+
+- Follow the Airbnb TypeScript style guide
+- Maximum line length: 100 characters
+- Use named exports (no default exports)
+
+## State Management
+
+- Use React hooks for local state
+- Use TanStack Query for server state
+- Use Zustand for global client state (sparingly)
+
+## API Integration
+
+- All API calls go through `src/api/` modules
+- Use OpenAPI types from `src/api/generated/`
+- Handle errors with the `useErrorHandler` hook
+
+## Security
+
+- Never commit API keys or secrets
+- All user input must be sanitized
+- Use environment variables for configuration
+
+## Before Committing
+
+1. Run `pnpm typecheck`
+2. Run `pnpm test`
+3. Run `pnpm lint:fix`
+```
+
+### Feature-Specific
+
+```markdown src/features/auth/AGENTS.md
+# Authentication Module
+
+## Overview
+
+This module handles user authentication using OAuth 2.0 + PKCE.
+
+## Architecture
+
+- `AuthProvider.tsx` - Context provider for auth state
+- `useAuth.ts` - Hook for accessing auth context
+- `oauth.ts` - OAuth flow implementation
+- `tokens.ts` - Token storage and refresh logic
+
+## Important Notes
+
+- Tokens are stored in httpOnly cookies (not localStorage)
+- Token refresh happens automatically 5 minutes before expiry
+- All auth routes require HTTPS in production
+
+## Testing Auth
+
+Use the mock auth provider in tests:
+
+```tsx
+import { MockAuthProvider } from './test-utils';
+
+<MockAuthProvider user={testUser}>
+  <YourComponent />
+</MockAuthProvider>
+```
+
+## Related
+
+- API integration: `src/api/auth.ts`
+- Backend docs: `docs/auth-api.md`
+```
+
+## Common Use Cases
+
+<AccordionGroup>
+  <Accordion title="Enforce coding style">
+    Example AGENTS.md content:
+    
+    ```text
+    # Code Style
+    
+    - Use single quotes for strings
+    - Include trailing commas in multiline arrays/objects
+    - Prefer arrow functions over function declarations
+    - Use template literals instead of string concatenation
+    ```
+    
+    Example code:
+    
+    ```typescript
+    // Good
+    const greeting = `Hello, ${name}!`;
+    const items = ['one', 'two', 'three'];
+    
+    // Avoid
+    const greeting = "Hello, " + name + "!";
+    const items = ["one", "two", "three"]
+    ```
+  </Accordion>
+  
+  <Accordion title="Document architecture decisions">
+    Example AGENTS.md for architecture:
+    
+    ```text
+    # Architecture Decisions
+    
+    ## Monorepo Structure
+    
+    We use a monorepo with pnpm workspaces:
+    - packages/core - Shared business logic
+    - packages/ui - Shared React components
+    - apps/web - Main web application
+    - apps/admin - Admin dashboard
+    
+    ## Data Flow
+    
+    1. User action triggers event in UI
+    2. Action creator dispatches to store
+    3. Reducer updates state immutably
+    4. Component re-renders with new props
+    
+    Any code changes should maintain this unidirectional flow.
+    Don't call API functions directly from components.
+    ```
+  </Accordion>
+  
+  <Accordion title="Define project constraints">
+    Example AGENTS.md for project constraints:
+    
+    ```text
+    # Project Constraints
+    
+    ## Browser Support
+    - Chrome 90+, Firefox 88+, Safari 14+, Edge 90+
+    - No IE11 support needed
+    
+    ## Bundle Size
+    - Initial bundle must be less than 200KB (gzipped)
+    - Individual route bundles should be less than 50KB
+    - Use dynamic imports for large dependencies
+    
+    ## Performance Targets
+    - First Contentful Paint less than 1.5s
+    - Time to Interactive less than 3.5s
+    - Lighthouse score greater than 90
+    
+    ## Dependencies
+    - Avoid adding new dependencies without team discussion
+    - Check bundle size impact with bundlephobia
+    ```
+  </Accordion>
+  
+  <Accordion title="Workflow preferences">
+    Example workflow preferences for AGENTS.md:
+    
+    ```text
+    # Workflow Preferences
+    
+    ## Git Workflow
+    - Create feature branches from main (e.g., feat/user-auth)
+    - Commit often with clear messages
+    - Squash commits before merging PR
+    - Delete branch after merge
+    
+    ## Code Review
+    - PRs should be less than 400 lines when possible
+    - Include screenshots for UI changes
+    - Update tests in the same PR
+    - Get approval from at least one reviewer
+    
+    ## Development
+    - Run pnpm dev to start local server
+    - Use pnpm test:watch during development
+    ```
+  </Accordion>
+  
+  <Accordion title="Communication style">
+    Example communication preferences:
+    
+    ```text
+    # Communication Preferences
+    
+    - Be concise but thorough in explanations
+    - Always explain the reasoning behind suggestions
+    - Ask clarifying questions when requirements are ambiguous
+    - Proactively point out potential issues or edge cases
+    - Use examples to illustrate concepts
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Be Specific" icon="crosshairs">
+    Provide concrete examples and explicit rules rather than vague guidelines
+  </Card>
+  
+  <Card title="Keep It Updated" icon="rotate">
+    Review and update instructions as your project evolves
+  </Card>
+  
+  <Card title="Focus on Context" icon="brain">
+    Include information Codex can't infer from code alone
+  </Card>
+  
+  <Card title="Use Structure" icon="list">
+    Organize with headers and lists for easy scanning
+  </Card>
+</CardGroup>
+
+### What to Include
+
+<Check>**DO** include:</Check>
+
+- Coding standards and conventions
+- Architecture principles
+- Project-specific constraints
+- Workflow preferences
+- Important context about design decisions
+- Links to relevant documentation
+
+<Warning>**AVOID** including:</Warning>
+
+- Information that's obvious from the code
+- Detailed API documentation (use inline comments instead)
+- Temporary notes (use regular comments or TODOs)
+- Secrets or sensitive information
+
+## Disabling Project Docs
+
+You can disable loading of AGENTS.md files:
+
+### Command-Line Flag
+
+```bash
+codex --no-project-doc
+```
+
+### Environment Variable
+
+```bash
+export CODEX_DISABLE_PROJECT_DOC=1
+codex
+```
+
+<Info>
+This only disables project-specific AGENTS.md files. Your personal `~/.codex/AGENTS.md` is still loaded.
+</Info>
+
+## Advanced Examples
+
+### Multi-Language Project
+
+```markdown
+# Polyglot Project Guidelines
+
+## Backend (Rust)
+
+- Follow the Rust API guidelines
+- Use `cargo fmt` and `cargo clippy`
+- Write doc comments with examples
+- Place unit tests in the same file using `#[cfg(test)]`
+
+## Frontend (TypeScript)
+
+- Use strict TypeScript mode
+- No `any` types without explicit justification
+- Prefer type inference over explicit types when obvious
+
+## Database (PostgreSQL)
+
+- All schema changes go through migrations
+- Use snake_case for column names
+- Always add indexes for foreign keys
+- Include `created_at` and `updated_at` timestamps
+
+## API Contracts
+
+- Use OpenAPI 3.0 specification
+- Version APIs with `/v1/`, `/v2/` prefixes
+- Never remove fields from existing endpoints (deprecate instead)
+```
+
+### Microservices Architecture
+
+```markdown
+# Microservices Guidelines
+
+## Service Boundaries
+
+- auth-service: Authentication and authorization
+- user-service: User profiles and preferences
+- payment-service: Payment processing and billing
+- notification-service: Email, SMS, push notifications
+
+## Inter-Service Communication
+
+- Use gRPC for synchronous calls
+- Use message queue (RabbitMQ) for async events
+- Never make database calls across services
+- Each service owns its data exclusively
+
+## Observability
+
+- Instrument all endpoints with OpenTelemetry
+- Log structured JSON with trace IDs
+- Set up alerts for error rate > 1%
+- Dashboard: https://grafana.internal/services
+
+## Deployment
+
+- Services run in Kubernetes
+- Use Helm charts in `k8s/charts/`
+- Staging: `kubectl config use-context staging`
+- Production: Requires approval + deploy script
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Instructions not being applied">
+    1. Verify file location: `ls -la AGENTS.md`
+    2. Check file is valid Markdown
+    3. Ensure `CODEX_DISABLE_PROJECT_DOC` is not set
+    4. Try `codex --no-project-doc` to confirm it's the AGENTS.md causing issues
+  </Accordion>
+  
+  <Accordion title="Too much conflicting guidance">
+    - Simplify global `~/.codex/AGENTS.md` to only personal preferences
+    - Keep repo-level `AGENTS.md` focused on critical standards
+    - Use directory-level files sparingly for truly module-specific notes
+  </Accordion>
+  
+  <Accordion title="Codex ignoring specific instructions">
+    - Be more explicit and specific in your wording
+    - Provide examples that illustrate the rule
+    - Move critical rules to the top of the file
+    - Consider if the instruction conflicts with model knowledge
+  </Accordion>
+</AccordionGroup>
+
+## Real-World Examples
+
+<Tabs>
+  <Tab title="Open Source Project">
+    ```text
+    # Contributing to XYZ
+    
+    ## Development Setup
+    1. Fork and clone the repository
+    2. Install dependencies: npm install
+    3. Run tests: npm test
+    4. Start dev server: npm run dev
+    
+    ## Commit Guidelines
+    Follow conventional commits:
+    - feat: New features
+    - fix: Bug fixes
+    - docs: Documentation changes
+    - refactor: Code restructuring
+    - test: Test changes
+    
+    ## Pull Request Process
+    1. Update README.md with any new functionality
+    2. Add tests for new features
+    3. Ensure CI passes
+    4. Request review from maintainers
+    
+    ## Code of Conduct
+    Be respectful and inclusive. See CODE_OF_CONDUCT.md.
+    ```
+  </Tab>
+  
+  <Tab title="Enterprise Application">
+    ```text
+    # Enterprise CRM - Development Guide
+    
+    ## Security Requirements
+    - All data must be encrypted at rest
+    - Use parameterized queries (never string concatenation)
+    - Validate all user input server-side
+    - Audit logs for all data modifications
+    
+    ## Compliance
+    - GDPR: Users can export/delete their data
+    - SOC 2: All changes must be tracked
+    - HIPAA: PHI must be specially marked
+    
+    ## Performance SLAs
+    - API response time less than 200ms (p95)
+    - Page load time less than 2s
+    - 99.9% uptime requirement
+    
+    ## Deployment
+    - Staging deploys: Automatic on merge to develop
+    - Production deploys: Manual approval required
+    - Rollback plan must be documented
+    ```
+  </Tab>
+  
+  <Tab title="Startup MVP">
+    ```text
+    # Startup MVP Guidelines
+    
+    ## Move Fast
+    - Prioritize shipping over perfection
+    - Technical debt is okay if documented
+    - Use managed services (less infra to maintain)
+    
+    ## Core Principles
+    - Simple is better than Complex
+    - Boring technology unless necessary
+    - Monolith first, split later if needed
+    
+    ## Stack
+    - Next.js (full-stack)
+    - Postgres (via Supabase)
+    - Vercel (hosting)
+    - Stripe (payments)
+    
+    ## Iteration Speed
+    - Deploy to staging: On every commit
+    - Deploy to production: Multiple times per day
+    - Feature flags: For incomplete features
+    ```
+  </Tab>
+</Tabs>
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/configuration/overview">
+    Global Codex configuration options
+  </Card>
+  
+  <Card title="Exec Policies" icon="shield-check" href="/advanced/exec-policies">
+    Control command execution
+  </Card>
+  
+  <Card title="Memory System" icon="database" href="/features/memory">
+    How Codex remembers context
+  </Card>
+  
+  <Card title="Best Practices" icon="star" href="/guides/best-practices">
+    Tips for using Codex effectively
+  </Card>
+</CardGroup>

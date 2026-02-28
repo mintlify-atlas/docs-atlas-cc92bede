@@ -1,0 +1,897 @@
+---
+title: Configuration Reference
+description: Complete reference for all Codex configuration options
+---
+
+This page provides a comprehensive reference of all configuration options available in `config.toml`.
+
+## Configuration File
+
+**Location**: `~/.codex/config.toml`
+
+**Format**: TOML (Tom's Obvious, Minimal Language)
+
+**Schema**: `codex-rs/core/config.schema.json`
+
+## Top-Level Options
+
+### Model Configuration
+
+<ParamField path="model" type="string" default="o4-mini">
+  Default model to use for conversations.
+  
+  Examples: `"gpt-4.1"`, `"gpt-5.1"`, `"gpt-5.1-codex"`, `"o4-mini"`
+</ParamField>
+
+<ParamField path="model_provider" type="string">
+  Key from `model_providers` map identifying which provider to use.
+  
+  Example: `"openai"`, `"azure"`, `"ollama"`
+</ParamField>
+
+<ParamField path="model_reasoning_effort" type="string">
+  Default reasoning effort for reasoning-capable models.
+  
+  Options: `"none"`, `"minimal"`, `"low"`, `"medium"`, `"high"`, `"xhigh"`
+</ParamField>
+
+<ParamField path="model_reasoning_summary" type="string" default="auto">
+  Controls reasoning summary presentation.
+  
+  Options: `"auto"`, `"concise"`, `"detailed"`, `"none"`
+</ParamField>
+
+<ParamField path="model_verbosity" type="string">
+  Output detail level for GPT-5 models.
+  
+  Options: `"low"`, `"medium"`, `"high"`
+</ParamField>
+
+<ParamField path="plan_mode_reasoning_effort" type="string">
+  Reasoning effort override specifically for Plan mode.
+  
+  When unset, Plan mode uses built-in default (`"medium"`). When set (including `"none"`), overrides Plan preset.
+</ParamField>
+
+<ParamField path="model_context_window" type="integer">
+  Context window size for the model in tokens.
+</ParamField>
+
+<ParamField path="model_auto_compact_token_limit" type="integer">
+  Token threshold that triggers automatic conversation compaction.
+</ParamField>
+
+<ParamField path="model_instructions_file" type="string">
+  Path to file containing custom model instructions.
+  
+  ⚠️ **Warning**: Overriding built-in instructions may degrade performance.
+</ParamField>
+
+<ParamField path="model_catalog_json" type="string">
+  Path to JSON model catalog file (applied on startup only).
+</ParamField>
+
+<ParamField path="model_supports_reasoning_summaries" type="boolean">
+  Force-enable reasoning summaries for the configured model.
+</ParamField>
+
+### Approval & Execution
+
+<ParamField path="approval_policy" type="string|object" default="untrusted">
+  When to ask user for approval before executing operations.
+  
+  **String options:**
+  - `"untrusted"` - Auto-approve only safe read operations
+  - `"on-request"` - Model decides when to ask
+  - `"on-failure"` - DEPRECATED: Auto-approve sandboxed, escalate on failure
+  - `"never"` - Never ask; return failures to model
+  
+  **Object form** (fine-grained rejection):
+  ```toml
+  [approval_policy.reject]
+  rules = true
+  sandbox_approval = false
+  mcp_elicitations = true
+  ```
+</ParamField>
+
+<ParamField path="sandbox_mode" type="string" default="workspace-write">
+  Filesystem access boundaries.
+  
+  Options:
+  - `"read-only"` - Read-only access
+  - `"workspace-write"` - Read anywhere, write in workspace
+  - `"danger-full-access"` - Full filesystem access
+</ParamField>
+
+<ParamField path="allow_login_shell" type="boolean" default="true">
+  Whether model may request login shell for shell tools.
+  
+  If `false`, `login = true` requests are rejected and default is non-login shell.
+</ParamField>
+
+### Sandbox Workspace Write
+
+<ParamField path="sandbox_workspace_write.network_access" type="boolean" default="false">
+  Allow network access in workspace-write mode.
+</ParamField>
+
+<ParamField path="sandbox_workspace_write.exclude_slash_tmp" type="boolean" default="false">
+  Exclude `/tmp` from writable paths.
+</ParamField>
+
+<ParamField path="sandbox_workspace_write.exclude_tmpdir_env_var" type="boolean" default="false">
+  Exclude `$TMPDIR` from writable paths.
+</ParamField>
+
+<ParamField path="sandbox_workspace_write.writable_roots" type="array" default="[]">
+  Additional absolute paths where writes are allowed.
+  
+  Example: `["/additional/path", "/another/path"]`
+</ParamField>
+
+### Authentication
+
+<ParamField path="cli_auth_credentials_store" type="string" default="auto">
+  Where to store CLI authentication credentials.
+  
+  Options:
+  - `"file"` - `~/.codex/auth.json`
+  - `"keyring"` - OS keyring service
+  - `"auto"` - Prefer keyring, fallback to file
+  - `"ephemeral"` - Memory only (current process)
+</ParamField>
+
+<ParamField path="forced_login_method" type="string">
+  Restrict login mechanism.
+  
+  Options: `"chatgpt"`, `"api"`
+</ParamField>
+
+<ParamField path="forced_chatgpt_workspace_id" type="string">
+  When set, restricts ChatGPT login to specific workspace.
+</ParamField>
+
+<ParamField path="chatgpt_base_url" type="string">
+  Base URL for ChatGPT (as opposed to OpenAI API) requests.
+</ParamField>
+
+### Instructions
+
+<ParamField path="instructions" type="string">
+  Global system instructions for the agent.
+</ParamField>
+
+<ParamField path="developer_instructions" type="string">
+  Developer role message instructions.
+</ParamField>
+
+<ParamField path="compact_prompt" type="string">
+  Custom prompt for conversation history compaction.
+</ParamField>
+
+<ParamField path="experimental_compact_prompt_file" type="string">
+  Path to file containing custom compaction prompt.
+</ParamField>
+
+### Profiles
+
+<ParamField path="profile" type="string">
+  Active profile name from the `profiles` map.
+</ParamField>
+
+<ParamField path="profiles" type="object" default="{}">
+  Named configuration profiles for easy switching.
+  
+  Each profile can override any configuration option.
+  
+  Example:
+  ```toml
+  [profiles.fast]
+  model = "o4-mini"
+  model_reasoning_effort = "low"
+  
+  [profiles.careful]
+  model = "gpt-4.1"
+  approval_policy = "untrusted"
+  ```
+</ParamField>
+
+### Personality
+
+<ParamField path="personality" type="string">
+  Agent personality mode.
+  
+  Options: `"none"`, `"friendly"`, `"pragmatic"`
+</ParamField>
+
+## Model Providers
+
+<ParamField path="model_providers" type="object" default="{}">
+  User-defined provider configurations.
+  
+  Example:
+  ```toml
+  [model_providers.ollama]
+  name = "Ollama"
+  base_url = "http://localhost:11434/v1"
+  env_key = "OLLAMA_API_KEY"
+  ```
+</ParamField>
+
+### Provider Configuration
+
+<ParamField path="model_providers.<name>.name" type="string" required>
+  Friendly display name for the provider.
+</ParamField>
+
+<ParamField path="model_providers.<name>.base_url" type="string">
+  Base URL for provider's OpenAI-compatible API.
+</ParamField>
+
+<ParamField path="model_providers.<name>.env_key" type="string">
+  Environment variable storing the API key.
+</ParamField>
+
+<ParamField path="model_providers.<name>.env_key_instructions" type="string">
+  Help text for obtaining and setting the API key.
+</ParamField>
+
+<ParamField path="model_providers.<name>.requires_openai_auth" type="boolean" default="false">
+  Whether provider requires OpenAI API key or ChatGPT login.
+</ParamField>
+
+<ParamField path="model_providers.<name>.http_headers" type="object">
+  Static HTTP headers (key-value pairs).
+</ParamField>
+
+<ParamField path="model_providers.<name>.env_http_headers" type="object">
+  Headers with values from environment variables (header → env var name).
+</ParamField>
+
+<ParamField path="model_providers.<name>.query_params" type="object">
+  Query parameters to append to requests.
+</ParamField>
+
+<ParamField path="model_providers.<name>.request_max_retries" type="integer" default="3">
+  Maximum HTTP request retries.
+</ParamField>
+
+<ParamField path="model_providers.<name>.stream_idle_timeout_ms" type="integer" default="30000">
+  Idle timeout (ms) before treating streaming connection as lost.
+</ParamField>
+
+<ParamField path="model_providers.<name>.stream_max_retries" type="integer" default="3">
+  Maximum streaming reconnection attempts.
+</ParamField>
+
+<ParamField path="model_providers.<name>.supports_websockets" type="boolean" default="false">
+  Whether provider supports Responses API WebSocket transport.
+</ParamField>
+
+<ParamField path="model_providers.<name>.wire_api" type="string" default="responses">
+  Wire protocol the provider expects. Currently only `"responses"` supported.
+</ParamField>
+
+## MCP Servers
+
+<ParamField path="mcp_servers" type="object" default="{}">
+  MCP server configurations keyed by server name.
+  
+  Example:
+  ```toml
+  [mcp_servers.github]
+  command = "npx"
+  args = ["-y", "@modelcontextprotocol/server-github"]
+  enabled = true
+  ```
+</ParamField>
+
+### MCP Server Configuration
+
+<ParamField path="mcp_servers.<name>.command" type="string">
+  Executable to launch (stdio transport).
+</ParamField>
+
+<ParamField path="mcp_servers.<name>.args" type="array">
+  Command arguments (stdio transport).
+</ParamField>
+
+<ParamField path="mcp_servers.<name>.url" type="string">
+  Server URL (streamable HTTP transport).
+</ParamField>
+
+<ParamField path="mcp_servers.<name>.enabled" type="boolean" default="true">
+  Whether server is enabled.
+</ParamField>
+
+<ParamField path="mcp_servers.<name>.required" type="boolean" default="false">
+  If true, Codex fails to start if server connection fails.
+</ParamField>
+
+<ParamField path="mcp_servers.<name>.env" type="object">
+  Environment variables for server process (stdio only).
+</ParamField>
+
+<ParamField path="mcp_servers.<name>.env_vars" type="array">
+  Environment variable names to inherit from parent.
+</ParamField>
+
+<ParamField path="mcp_servers.<name>.cwd" type="string">
+  Working directory for server process (stdio only).
+</ParamField>
+
+<ParamField path="mcp_servers.<name>.bearer_token_env_var" type="string">
+  Environment variable with bearer token (HTTP only).
+</ParamField>
+
+<ParamField path="mcp_servers.<name>.http_headers" type="object">
+  Static HTTP headers (HTTP only).
+</ParamField>
+
+<ParamField path="mcp_servers.<name>.env_http_headers" type="object">
+  Headers from environment variables (HTTP only).
+</ParamField>
+
+<ParamField path="mcp_servers.<name>.startup_timeout_sec" type="number">
+  Maximum server startup time (seconds).
+</ParamField>
+
+<ParamField path="mcp_servers.<name>.tool_timeout_sec" type="number">
+  Maximum tool execution time (seconds).
+</ParamField>
+
+<ParamField path="mcp_servers.<name>.enabled_tools" type="array">
+  Whitelist of enabled tools. If set, only these are exposed.
+</ParamField>
+
+<ParamField path="mcp_servers.<name>.disabled_tools" type="array">
+  Blacklist of disabled tools.
+</ParamField>
+
+<ParamField path="mcp_servers.<name>.scopes" type="array">
+  OAuth scopes to request.
+</ParamField>
+
+<ParamField path="mcp_servers.<name>.oauth_resource" type="string">
+  OAuth resource identifier.
+</ParamField>
+
+### MCP OAuth Settings
+
+<ParamField path="mcp_oauth_credentials_store" type="string" default="auto">
+  Where to store MCP OAuth credentials.
+  
+  Options: `"auto"`, `"file"`, `"keyring"`
+</ParamField>
+
+<ParamField path="mcp_oauth_callback_port" type="integer">
+  Fixed port for OAuth callback server. If unset, uses ephemeral port.
+</ParamField>
+
+<ParamField path="mcp_oauth_callback_url" type="string">
+  Redirect URI for OAuth flow. Local listener still binds to 127.0.0.1.
+</ParamField>
+
+## Apps Configuration
+
+<ParamField path="apps" type="object">
+  App/connector control settings.
+  
+  Example:
+  ```toml
+  [apps._default]
+  enabled = true
+  destructive_enabled = false
+  
+  [apps.github]
+  enabled = true
+  default_tools_approval_mode = "auto"
+  ```
+</ParamField>
+
+### App Settings
+
+<ParamField path="apps._default.enabled" type="boolean" default="true">
+  Default enabled state for all apps.
+</ParamField>
+
+<ParamField path="apps._default.destructive_enabled" type="boolean">
+  Whether destructive tools are allowed by default.
+</ParamField>
+
+<ParamField path="apps._default.open_world_enabled" type="boolean">
+  Whether open-world tools are allowed by default.
+</ParamField>
+
+<ParamField path="apps.<name>.enabled" type="boolean" default="true">
+  Enable or disable specific app.
+</ParamField>
+
+<ParamField path="apps.<name>.default_tools_enabled" type="boolean">
+  Whether tools are enabled by default for this app.
+</ParamField>
+
+<ParamField path="apps.<name>.default_tools_approval_mode" type="string">
+  Default approval mode for app tools.
+  
+  Options: `"auto"`, `"prompt"`, `"approve"`
+</ParamField>
+
+<ParamField path="apps.<name>.destructive_enabled" type="boolean">
+  Allow destructive tools for this app.
+</ParamField>
+
+<ParamField path="apps.<name>.open_world_enabled" type="boolean">
+  Allow open-world tools for this app.
+</ParamField>
+
+<ParamField path="apps.<name>.tools.<tool>.enabled" type="boolean">
+  Enable/disable specific tool.
+</ParamField>
+
+<ParamField path="apps.<name>.tools.<tool>.approval_mode" type="string">
+  Approval mode for specific tool.
+</ParamField>
+
+## Shell Environment Policy
+
+<ParamField path="shell_environment_policy.inherit" type="string">
+  Which environment to inherit.
+  
+  Options:
+  - `"core"` - Essential variables only (HOME, PATH, USER, etc.)
+  - `"all"` - Full parent environment
+  - `"none"` - Empty environment
+</ParamField>
+
+<ParamField path="shell_environment_policy.include_only" type="array">
+  If set, only inherit variables matching these regex patterns.
+</ParamField>
+
+<ParamField path="shell_environment_policy.exclude" type="array">
+  Regex patterns for variables to exclude (after inherit).
+</ParamField>
+
+<ParamField path="shell_environment_policy.ignore_default_excludes" type="boolean">
+  Ignore built-in exclude patterns.
+</ParamField>
+
+<ParamField path="shell_environment_policy.set" type="object">
+  Explicitly set environment variables.
+</ParamField>
+
+<ParamField path="shell_environment_policy.experimental_use_profile" type="boolean">
+  Experimental: Use shell profile during initialization.
+</ParamField>
+
+## Agent Configuration
+
+<ParamField path="agents.max_threads" type="integer">
+  Maximum concurrent agent threads. If unset, no limit.
+</ParamField>
+
+<ParamField path="agents.max_depth" type="integer">
+  Maximum nesting depth for spawned agents (root = 0).
+</ParamField>
+
+<ParamField path="agents.job_max_runtime_seconds" type="integer">
+  Default maximum runtime for agent job workers (seconds).
+</ParamField>
+
+<ParamField path="agents.<role>.config_file" type="string">
+  Path to role-specific config layer.
+</ParamField>
+
+<ParamField path="agents.<role>.description" type="string">
+  Human-facing role documentation.
+</ParamField>
+
+## Tools
+
+<ParamField path="tools.view_image" type="boolean">
+  Enable `view_image` tool for attaching local images.
+</ParamField>
+
+<ParamField path="tools.web_search" type="boolean">
+  Enable web search tool.
+</ParamField>
+
+<ParamField path="web_search" type="string" default="disabled">
+  Web search mode.
+  
+  Options: `"disabled"`, `"cached"`, `"live"`
+</ParamField>
+
+<ParamField path="tool_output_token_limit" type="integer">
+  Token budget for tool/function output storage.
+</ParamField>
+
+## Permissions
+
+<ParamField path="permissions.network.enabled" type="boolean">
+  Enable network proxy.
+</ParamField>
+
+<ParamField path="permissions.network.mode" type="string">
+  Network access mode.
+  
+  Options: `"limited"`, `"full"`
+</ParamField>
+
+<ParamField path="permissions.network.allowed_domains" type="array">
+  Allowed domain patterns.
+</ParamField>
+
+<ParamField path="permissions.network.denied_domains" type="array">
+  Explicitly denied domains.
+</ParamField>
+
+<ParamField path="permissions.network.allow_unix_sockets" type="array">
+  Allowed Unix socket paths.
+</ParamField>
+
+<ParamField path="permissions.network.dangerously_allow_all_unix_sockets" type="boolean">
+  Allow all Unix sockets (use with caution).
+</ParamField>
+
+<ParamField path="permissions.network.allow_local_binding" type="boolean">
+  Allow binding to local ports.
+</ParamField>
+
+<ParamField path="permissions.network.allow_upstream_proxy" type="boolean">
+  Allow proxying to upstream servers.
+</ParamField>
+
+<ParamField path="permissions.network.proxy_url" type="string">
+  HTTP proxy URL.
+</ParamField>
+
+<ParamField path="permissions.network.socks_url" type="string">
+  SOCKS proxy URL.
+</ParamField>
+
+<ParamField path="permissions.network.admin_url" type="string">
+  Admin interface URL.
+</ParamField>
+
+<ParamField path="permissions.network.enable_socks5" type="boolean">
+  Enable SOCKS5 proxy.
+</ParamField>
+
+<ParamField path="permissions.network.enable_socks5_udp" type="boolean">
+  Enable SOCKS5 UDP support.
+</ParamField>
+
+## TUI Settings
+
+<ParamField path="tui.notifications" type="boolean" default="true">
+  Enable desktop notifications when terminal unfocused.
+</ParamField>
+
+<ParamField path="tui.notification_method" type="string" default="auto">
+  Notification method.
+  
+  Options: `"auto"`, `"osc9"`, `"bel"`
+</ParamField>
+
+<ParamField path="tui.alternate_screen" type="string" default="auto">
+  Alternate screen buffer mode.
+  
+  Options:
+  - `"auto"` - Disable in Zellij, enable elsewhere
+  - `"always"` - Always use alternate screen
+  - `"never"` - Never use (preserves scrollback)
+</ParamField>
+
+<ParamField path="tui.animations" type="boolean" default="true">
+  Enable TUI animations and effects.
+</ParamField>
+
+<ParamField path="tui.show_tooltips" type="boolean" default="true">
+  Show startup tooltips in welcome screen.
+</ParamField>
+
+<ParamField path="tui.theme" type="string">
+  Syntax highlighting theme name (kebab-case).
+  
+  Overrides automatic light/dark detection. Custom themes in `$CODEX_HOME/themes`.
+</ParamField>
+
+<ParamField path="tui.status_line" type="array">
+  Ordered list of status line item identifiers.
+  
+  Default: `["model-with-reasoning", "context-remaining", "current-dir"]`
+</ParamField>
+
+## History
+
+<ParamField path="history.persistence" type="string" default="save-all">
+  History persistence mode.
+  
+  Options:
+  - `"save-all"` - Save to `~/.codex/history.jsonl`
+  - `"none"` - Don't save to disk
+</ParamField>
+
+<ParamField path="history.max_bytes" type="integer">
+  Maximum history file size (bytes). Oldest entries dropped when exceeded.
+</ParamField>
+
+## Memories
+
+<ParamField path="memories.use_memories" type="boolean">
+  Inject memory usage instructions into prompts.
+</ParamField>
+
+<ParamField path="memories.generate_memories" type="boolean">
+  Enable automatic memory generation.
+</ParamField>
+
+<ParamField path="memories.max_rollout_age_days" type="integer">
+  Maximum age of threads for memory generation (days).
+</ParamField>
+
+<ParamField path="memories.min_rollout_idle_hours" type="integer">
+  Minimum idle time before memory creation (hours, >12 recommended).
+</ParamField>
+
+<ParamField path="memories.max_rollouts_per_startup" type="integer">
+  Maximum rollout candidates processed per pass.
+</ParamField>
+
+<ParamField path="memories.max_unused_days" type="integer">
+  Maximum days since last use before memory becomes ineligible.
+</ParamField>
+
+<ParamField path="memories.max_raw_memories_for_global" type="integer">
+  Maximum recent raw memories retained for global consolidation.
+</ParamField>
+
+<ParamField path="memories.phase_1_model" type="string">
+  Model for thread summarization.
+</ParamField>
+
+<ParamField path="memories.phase_2_model" type="string">
+  Model for memory consolidation.
+</ParamField>
+
+## Ghost Snapshots
+
+<ParamField path="ghost_snapshot.ignore_large_untracked_files" type="integer">
+  Exclude untracked files larger than this (bytes).
+</ParamField>
+
+<ParamField path="ghost_snapshot.ignore_large_untracked_dirs" type="integer">
+  Ignore untracked dirs with this many files or more.
+</ParamField>
+
+<ParamField path="ghost_snapshot.disable_warnings" type="boolean">
+  Disable ghost snapshot warning events.
+</ParamField>
+
+## Skills
+
+<ParamField path="skills.config" type="array">
+  User-level skill configurations.
+  
+  Example:
+  ```toml
+  [[skills.config]]
+  enabled = true
+  path = "~/.codex/skills/custom-skill"
+  ```
+</ParamField>
+
+## Project Settings
+
+<ParamField path="project_root_markers" type="array" default='[".git"]'>
+  Markers for detecting project root when searching for `.codex` folders.
+</ParamField>
+
+<ParamField path="project_doc_fallback_filenames" type="array">
+  Fallback filenames when `AGENTS.md` is missing.
+</ParamField>
+
+<ParamField path="project_doc_max_bytes" type="integer">
+  Maximum bytes to include from `AGENTS.md` files.
+</ParamField>
+
+<ParamField path="projects.<path>.trust_level" type="string">
+  Trust level for project directory.
+  
+  Options: `"trusted"`, `"untrusted"`
+</ParamField>
+
+## Notices
+
+<ParamField path="notice.hide_full_access_warning" type="boolean">
+  Tracks whether user acknowledged full access warning.
+</ParamField>
+
+<ParamField path="notice.hide_rate_limit_model_nudge" type="boolean">
+  Tracks whether user opted out of rate limit model nudge.
+</ParamField>
+
+<ParamField path="notice.model_migrations" type="object">
+  Tracks acknowledged model migrations (old → new mappings).
+</ParamField>
+
+## Notification
+
+<ParamField path="notify" type="array">
+  External command to run for notifications.
+  
+  Example: `["terminal-notifier", "-title", "Codex", "-message", "Done"]`
+</ParamField>
+
+## Analytics & Feedback
+
+<ParamField path="analytics.enabled" type="boolean" default="true">
+  Enable usage analytics.
+</ParamField>
+
+<ParamField path="feedback.enabled" type="boolean" default="true">
+  Enable feedback prompts.
+</ParamField>
+
+## Logging & Storage
+
+<ParamField path="log_dir" type="string">
+  Directory for log files. Defaults to `$CODEX_HOME/log`.
+</ParamField>
+
+<ParamField path="sqlite_home" type="string">
+  SQLite database directory. Defaults to `$CODEX_SQLITE_HOME` or `$CODEX_HOME`.
+</ParamField>
+
+## JavaScript REPL
+
+<ParamField path="js_repl_node_path" type="string">
+  Absolute path to Node.js runtime for js_repl.
+</ParamField>
+
+<ParamField path="js_repl_node_module_dirs" type="array">
+  Ordered list of Node module search directories.
+</ParamField>
+
+## Miscellaneous
+
+<ParamField path="file_opener" type="string">
+  URI-based file opener for file citations.
+  
+  Options: `"vscode"`, `"vscode-insiders"`, `"windsurf"`, `"cursor"`, `"none"`
+</ParamField>
+
+<ParamField path="commit_attribution" type="string">
+  Commit attribution text for co-author trailers. Empty string disables.
+</ParamField>
+
+<ParamField path="check_for_update_on_startup" type="boolean" default="true">
+  Check for Codex updates on startup.
+</ParamField>
+
+<ParamField path="disable_paste_burst" type="boolean">
+  Disable burst-paste detection for typed input.
+</ParamField>
+
+<ParamField path="hide_agent_reasoning" type="boolean" default="false">
+  Hide `AgentReasoning` events from UI.
+</ParamField>
+
+<ParamField path="show_raw_agent_reasoning" type="boolean" default="false">
+  Show raw agent reasoning content events.
+</ParamField>
+
+<ParamField path="suppress_unstable_features_warning" type="boolean">
+  Suppress warnings about unstable features.
+</ParamField>
+
+<ParamField path="background_terminal_max_timeout" type="integer" default="300000">
+  Maximum poll window for background terminal output (ms).
+</ParamField>
+
+<ParamField path="review_model" type="string">
+  Model override for `/review` feature.
+</ParamField>
+
+<ParamField path="oss_provider" type="string">
+  Preferred OSS provider for local models (e.g., `"lmstudio"`, `"ollama"`).
+</ParamField>
+
+<ParamField path="zsh_path" type="string">
+  Absolute path to patched zsh for zsh-exec-bridge shell execution.
+</ParamField>
+
+## Windows Settings
+
+<ParamField path="windows.sandbox" type="string">
+  Windows sandbox mode.
+  
+  Options: `"elevated"`, `"unelevated"`
+</ParamField>
+
+<ParamField path="windows_wsl_setup_acknowledged" type="boolean">
+  Tracks whether Windows onboarding screen was acknowledged.
+</ParamField>
+
+## OpenTelemetry
+
+<ParamField path="otel.environment" type="string" default="dev">
+  Environment tag for traces (dev, staging, prod, test).
+</ParamField>
+
+<ParamField path="otel.log_user_prompt" type="boolean" default="false">
+  Include user prompts in trace logs.
+</ParamField>
+
+<ParamField path="otel.exporter" type="string|object">
+  Log exporter configuration.
+</ParamField>
+
+<ParamField path="otel.trace_exporter" type="string|object">
+  Trace exporter configuration.
+</ParamField>
+
+<ParamField path="otel.metrics_exporter" type="string|object">
+  Metrics exporter configuration.
+</ParamField>
+
+## Audio
+
+<ParamField path="audio.microphone" type="string">
+  Realtime audio microphone device preference.
+</ParamField>
+
+<ParamField path="audio.speaker" type="string">
+  Realtime audio speaker device preference.
+</ParamField>
+
+## Feature Flags
+
+<ParamField path="features" type="object">
+  Centralized feature flags for experimental features.
+  
+  Available flags:
+  - `multi_agent`
+  - `memories`
+  - `web_search`
+  - `sqlite`
+  - `undo`
+  - `collaboration_modes`
+  - `realtime_conversation`
+  - `voice_transcription`
+  - And many more...
+</ParamField>
+
+## Configuration Priority
+
+Configuration is merged in this order (later overrides earlier):
+
+1. Built-in defaults
+2. Global config (`~/.codex/config.toml`)
+3. Project config (`.codex/config.toml` in project root)
+4. Profile settings (when `profile` is set or `--profile` flag used)
+5. CLI flags (`--model`, `--approval-policy`, etc.)
+6. Environment variables (`CODEX_MODEL`, etc.)
+
+## Validation
+
+Codex validates configuration against JSON Schema at `codex-rs/core/config.schema.json`.
+
+Common validation errors:
+- Invalid enum values (e.g., unknown `approval_policy`)
+- Type mismatches (string vs integer)
+- Missing required fields in nested objects
+- Invalid path formats for file paths
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Basic Configuration" icon="sliders" href="/configuration/basic">
+    Get started with essential options
+  </Card>
+  <Card title="Advanced Configuration" icon="gears" href="/configuration/advanced">
+    Explore power user features
+  </Card>
+</CardGroup>

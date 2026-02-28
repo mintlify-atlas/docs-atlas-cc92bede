@@ -1,0 +1,213 @@
+---
+title: codex
+description: Run Codex interactively with optional initial prompt
+---
+
+## Syntax
+
+```bash
+codex [OPTIONS] [PROMPT]
+```
+
+## Description
+
+The `codex` command launches the interactive Codex TUI (Terminal User Interface). If you provide a prompt as an argument, Codex starts with that prompt pre-filled. Without arguments, you'll see an empty prompt where you can type your request.
+
+## Usage
+
+### Interactive Mode
+
+Start Codex with an empty prompt:
+
+```bash
+codex
+```
+
+### With Initial Prompt
+
+Start Codex with a specific task:
+
+```bash
+codex "refactor the Dashboard component to use React hooks"
+```
+
+### With Images
+
+Attach images to your prompt:
+
+```bash
+codex -i screenshot.png "implement this design"
+codex -i mockup1.png,mockup2.png "create a landing page matching these designs"
+```
+
+## Options
+
+<ParamField path="PROMPT" type="string">
+  Initial prompt to send to Codex. If not provided, starts with empty prompt.
+</ParamField>
+
+### Model & Provider
+
+<ParamField path="-m, --model" type="string">
+  AI model to use (e.g., `gpt-4.1`, `o4-mini`). Defaults to configured model.
+</ParamField>
+
+<ParamField path="--oss" type="boolean">
+  Use open-source/local model provider instead of OpenAI.
+</ParamField>
+
+<ParamField path="--local-provider" type="string">
+  Specify OSS provider: `ollama`, `lmstudio`. Only valid with `--oss`.
+</ParamField>
+
+### Approval & Sandbox
+
+<ParamField path="--full-auto" type="boolean">
+  Run in full-auto mode with workspace-write sandbox. No approvals required for file writes or shell commands.
+</ParamField>
+
+<ParamField path="--sandbox" type="string">
+  Sandbox mode: `workspace-write`, `workspace-read-network-write`, `read-only`, `danger-full-access`.
+</ParamField>
+
+<ParamField path="--ask-for-approval" type="string">
+  Approval policy: `never`, `on-request`, `for-risky-ops`.
+</ParamField>
+
+<ParamField path="--dangerously-bypass-approvals-and-sandbox" type="boolean">
+  Skip all approval checks and sandbox restrictions. Use with extreme caution.
+</ParamField>
+
+### Input
+
+<ParamField path="-i, --images" type="string">
+  Comma-separated list of image paths to attach. Supports PNG, JPEG, GIF, WebP.
+</ParamField>
+
+<ParamField path="--add-dir" type="path">
+  Additional directories to make writable in sandbox (repeatable).
+</ParamField>
+
+<ParamField path="--search" type="boolean">
+  Enable web search for this session.
+</ParamField>
+
+### Session Management
+
+<ParamField path="-C, --cwd" type="path">
+  Working directory for this session.
+</ParamField>
+
+<ParamField path="--ephemeral" type="boolean">
+  Don't save this session to history.
+</ParamField>
+
+<ParamField path="--skip-git-repo-check" type="boolean">
+  Skip the check for being inside a Git repository.
+</ParamField>
+
+### Configuration
+
+<ParamField path="-p, --profile" type="string">
+  Use a specific config profile.
+</ParamField>
+
+<ParamField path="-c" type="string">
+  Override config.toml setting (repeatable). Format: `key=value` or `section.key=value`.
+  
+  Examples:
+  - `-c model=gpt-4.1`
+  - `-c permissions.approval_policy=never`
+</ParamField>
+
+<ParamField path="--enable" type="string">
+  Enable a feature flag (repeatable). Equivalent to `-c features.<name>=true`.
+</ParamField>
+
+<ParamField path="--disable" type="string">
+  Disable a feature flag (repeatable). Equivalent to `-c features.<name>=false`.
+</ParamField>
+
+## Examples
+
+### Basic Usage
+
+```bash
+# Start interactive session
+codex
+
+# Start with a prompt
+codex "explain this codebase"
+
+# Use a specific model
+codex -m gpt-4.1 "implement OAuth authentication"
+```
+
+### Full Auto Mode
+
+```bash
+# Let Codex run autonomously with file write permissions
+codex --full-auto "build a REST API with Express"
+
+# With custom sandbox configuration
+codex --sandbox workspace-write "create integration tests"
+```
+
+### With Images
+
+```bash
+# Implement a design from a mockup
+codex -i design-mockup.png "build this UI component"
+
+# Multiple images
+codex -i dashboard.png,sidebar.png "recreate this interface"
+```
+
+### Local/OSS Models
+
+```bash
+# Use Ollama
+codex --oss --local-provider ollama "write unit tests"
+
+# Use LM Studio
+codex --oss --local-provider lmstudio -m codellama "refactor this module"
+```
+
+### Configuration Overrides
+
+```bash
+# Temporarily change settings
+codex -c sandbox_mode=workspace_write "scaffold a new project"
+
+# Multiple overrides
+codex -c model=o4 -c web_search=live "research best practices for API design"
+
+# Use a profile
+codex -p production "deploy the latest changes"
+```
+
+### Special Directories
+
+```bash
+# Run in a different directory
+codex -C ~/projects/api "add health check endpoint"
+
+# Add extra writable directories
+codex --add-dir /tmp/cache "generate and cache API responses"
+```
+
+## Terminal Requirements
+
+Codex's interactive TUI requires a terminal that supports:
+
+- ANSI escape codes
+- UTF-8 encoding
+- Terminal dimensions (rows/columns)
+
+If `TERM=dumb`, Codex will warn you and ask for confirmation before starting.
+
+## Related Commands
+
+- [`codex exec`](/cli/exec) - Non-interactive execution for automation
+- [`codex resume`](/cli/resume) - Continue a previous session
+- [`codex fork`](/cli/fork) - Fork a previous session

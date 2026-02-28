@@ -1,0 +1,419 @@
+---
+title: "Exec Mode (Non-Interactive)"
+description: "Run Codex programmatically in CI/CD pipelines and automation scripts"
+---
+
+## Overview
+
+Exec mode allows you to run Codex non-interactively for automation, CI/CD pipelines, and scripted workflows. Instead of launching the interactive TUI, Codex executes your prompt, completes the task, and exits automatically.
+
+<Note>
+Exec mode is ideal for automated workflows where you need Codex to complete a task without human intervention.
+</Note>
+
+## Basic Usage
+
+The `codex exec` command runs Codex in non-interactive mode:
+
+```bash
+codex exec "your prompt here"
+```
+
+You can also pass the prompt via stdin:
+
+```bash
+echo "update the changelog" | codex exec
+```
+
+Or from a file:
+
+```bash
+codex exec < task.txt
+```
+
+## Command-Line Options
+
+<ParamField path="--ephemeral" type="boolean" default="false">
+  Run without persisting session rollout files to disk. Useful for temporary automation tasks.
+</ParamField>
+
+<ParamField path="--json" type="boolean" default="false">
+  Print events to stdout as JSONL for programmatic parsing.
+</ParamField>
+
+<ParamField path="--output-last-message" type="string">
+  Write the last message from the agent to the specified file.
+  
+  ```bash
+  codex exec -o response.md "explain the architecture"
+  ```
+</ParamField>
+
+<ParamField path="--output-schema" type="string">
+  Path to a JSON Schema file describing the model's final response shape.
+</ParamField>
+
+<ParamField path="--color" type="string" default="auto">
+  Control color output: `always`, `never`, or `auto`.
+</ParamField>
+
+<ParamField path="--progress-cursor" type="boolean" default="false">
+  Force cursor-based progress updates in exec mode.
+</ParamField>
+
+## CI/CD Integration
+
+### GitHub Actions Example
+
+<CodeGroup>
+```yaml GitHub Actions
+name: Update Changelog
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Codex
+        run: npm install -g @openai/codex
+      
+      - name: Update changelog via Codex
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          codex exec --sandbox workspace-write \
+            "update CHANGELOG.md for the latest release"
+      
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "docs: update changelog [skip ci]"
+          git push
+```
+
+```yaml GitLab CI
+update-docs:
+  image: node:20
+  script:
+    - npm install -g @openai/codex
+    - codex exec --sandbox workspace-write "generate API documentation"
+  only:
+    - main
+```
+
+```yaml CircleCI
+version: 2.1
+
+jobs:
+  codex-task:
+    docker:
+      - image: cimg/node:20.0
+    steps:
+      - checkout
+      - run:
+          name: Install Codex
+          command: npm install -g @openai/codex
+      - run:
+          name: Run Codex task
+          command: codex exec --ephemeral "analyze test coverage"
+```
+</CodeGroup>
+
+### Environment Variables
+
+<Warning>
+Always store API keys and sensitive credentials as secrets in your CI/CD platform.
+</Warning>
+
+```bash
+# Required: OpenAI API key
+export OPENAI_API_KEY="sk-..."
+
+# Optional: Suppress interactive UI prompts
+export CODEX_QUIET_MODE=1
+
+# Optional: Enable verbose logging (see Tracing guide)
+export RUST_LOG=info
+```
+
+## Approval Modes for Automation
+
+<Steps>
+  <Step title="Full Auto Mode">
+    Use `--full-auto` for complete automation with sandboxing:
+    
+    ```bash
+    codex exec --full-auto "fix all linting errors"
+    ```
+    
+    This is equivalent to:
+    ```bash
+    codex exec --sandbox workspace-write "fix all linting errors"
+    ```
+  </Step>
+  
+  <Step title="Danger Mode (Use with Caution)">
+    Only for externally sandboxed environments:
+    
+    ```bash
+    codex exec --dangerously-bypass-approvals-and-sandbox "run tests"
+    ```
+    
+    <Warning>
+    This disables all safety checks. Only use inside Docker or other isolated environments.
+    </Warning>
+  </Step>
+</Steps>
+
+## Output Formats
+
+### Human-Readable Output
+
+By default, exec mode prints human-readable progress to stderr:
+
+```bash
+codex exec "summarize the project"
+```
+
+Output:
+```
+⚙ Reading project files...
+✓ Analysis complete
+📝 Writing summary...
+
+[Summary content appears here]
+```
+
+### JSON Lines (JSONL) Output
+
+For programmatic parsing, use `--json`:
+
+```bash
+codex exec --json "list all API endpoints" > results.jsonl
+```
+
+Each line is a JSON event:
+
+```json
+{"type":"AgentMessage","content":"Analyzing API routes..."}
+{"type":"FileChange","path":"api_summary.md","status":"created"}
+{"type":"TurnComplete","success":true}
+```
+
+### Structured Output with Schema
+
+Provide a JSON Schema to enforce structured output:
+
+```bash
+codex exec \
+  --output-schema schema.json \
+  --output-last-message result.json \
+  "extract all dependencies"
+```
+
+<Accordion title="Example JSON Schema">
+```json schema.json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string"},
+          "version": {"type": "string"},
+          "type": {"enum": ["runtime", "dev", "peer"]}
+        },
+        "required": ["name", "version", "type"]
+      }
+    }
+  },
+  "required": ["dependencies"]
+}
+```
+</Accordion>
+
+## Working with Images
+
+Attach images to your exec prompt:
+
+```bash
+# Single image
+codex exec --image screenshot.png "implement this design"
+
+# Multiple images
+codex exec --image design1.png,design2.png "compare these mockups"
+```
+
+## Session Management
+
+### Ephemeral Sessions
+
+Use `--ephemeral` to avoid writing session data to disk:
+
+```bash
+codex exec --ephemeral "quick analysis task"
+```
+
+Benefits:
+- Faster startup (no session loading)
+- No disk I/O overhead
+- Clean environment for one-off tasks
+
+### Resume Previous Sessions
+
+You can resume a previous exec session:
+
+```bash
+# Resume the most recent session
+codex exec resume --last
+
+# Resume by session ID
+codex exec resume <session-id>
+
+# Resume with additional prompt
+codex exec resume --last "continue with unit tests"
+```
+
+## Error Handling
+
+Exec mode exits with status codes for automation:
+
+<ResponseField name="Exit Code 0" type="success">
+  Task completed successfully
+</ResponseField>
+
+<ResponseField name="Exit Code 1" type="error">
+  Task failed or error occurred
+</ResponseField>
+
+Example with error handling:
+
+```bash
+#!/bin/bash
+set -e
+
+if codex exec --ephemeral "run tests and report failures"; then
+  echo "Tests passed!"
+  notify-send "Codex: Tests passed"
+else
+  echo "Tests failed. Check logs."
+  exit 1
+fi
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Ephemeral Mode" icon="bolt">
+    For CI/CD tasks that don't need session persistence
+  </Card>
+  
+  <Card title="Capture Output" icon="file-export">
+    Use `--output-last-message` to save results
+  </Card>
+  
+  <Card title="Enable JSON Mode" icon="brackets-curly">
+    Parse events programmatically with `--json`
+  </Card>
+  
+  <Card title="Set Appropriate Sandbox" icon="shield">
+    Use `--full-auto` for safe automation
+  </Card>
+</CardGroup>
+
+## Examples
+
+<AccordionGroup>
+  <Accordion title="Generate Documentation">
+    ```bash
+    codex exec \
+      --sandbox workspace-write \
+      --output-last-message docs/api.md \
+      "generate comprehensive API documentation from source code"
+    ```
+  </Accordion>
+  
+  <Accordion title="Automated Code Review">
+    ```bash
+    # Review uncommitted changes
+    codex exec review --uncommitted
+    
+    # Review against base branch
+    codex exec review --base main
+    
+    # Review specific commit
+    codex exec review --commit abc123 --title "feat: add new feature"
+    ```
+  </Accordion>
+  
+  <Accordion title="Batch Processing">
+    ```bash
+    #!/bin/bash
+    for file in src/*.js; do
+      codex exec --ephemeral "add JSDoc comments to $file"
+    done
+    ```
+  </Accordion>
+  
+  <Accordion title="Scheduled Maintenance">
+    ```bash
+    # Cron job: daily dependency updates
+    0 2 * * * cd /path/to/project && \
+      codex exec --full-auto "update dependencies and run tests" \
+      >> /var/log/codex-maintenance.log 2>&1
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Task doesn't complete automatically">
+    Ensure you're using an appropriate approval mode:
+    - Use `--full-auto` for automated execution
+    - Check that your prompt is clear and has defined completion criteria
+    - Enable verbose logging to see what's happening: `RUST_LOG=debug codex exec ...`
+  </Accordion>
+  
+  <Accordion title="CI job times out">
+    - Set explicit timeouts in your CI configuration
+    - Use `--ephemeral` to reduce startup overhead
+    - Consider breaking large tasks into smaller steps
+  </Accordion>
+  
+  <Accordion title="Authentication fails in CI">
+    - Verify `OPENAI_API_KEY` is set correctly
+    - Check that the API key has sufficient permissions
+    - Ensure your organization allows API access
+  </Accordion>
+</AccordionGroup>
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Execution Policies" icon="shield-check" href="/advanced/exec-policies">
+    Control which commands can be executed
+  </Card>
+  
+  <Card title="Tracing & Logging" icon="bug" href="/advanced/tracing">
+    Debug with verbose logging
+  </Card>
+  
+  <Card title="Custom Instructions" icon="pen" href="/advanced/custom-instructions">
+    Add project-specific guidance
+  </Card>
+  
+  <Card title="Sandbox Configuration" icon="lock" href="/security/sandbox">
+    Configure sandboxing behavior
+  </Card>
+</CardGroup>

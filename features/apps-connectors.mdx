@@ -1,0 +1,423 @@
+---
+title: Apps & Connectors
+description: Connect Codex to external services and ChatGPT apps for enhanced capabilities
+---
+
+## What are Apps & Connectors?
+
+Apps & Connectors allow Codex to integrate with external services and ChatGPT apps, extending its capabilities beyond the terminal. This feature enables Codex to access data from connected services and use tools provided by ChatGPT apps.
+
+<Note>
+Apps & Connectors bring ChatGPT's ecosystem of integrations into your command-line workflow.
+</Note>
+
+## Using Connectors in Composer
+
+The easiest way to use apps is through the composer with the `$` prefix.
+
+### Inserting a Connector
+
+Type `$` in the composer to trigger the connector popover:
+
+<Steps>
+  <Step title="Open the composer">
+    Start typing your prompt in Codex.
+  </Step>
+  
+  <Step title="Type $ to trigger connector popover">
+    ```bash
+    > $
+    ```
+    
+    A popover appears listing accessible apps.
+  </Step>
+  
+  <Step title="Select an app">
+    Use arrow keys to navigate and press Enter to select an app.
+  </Step>
+  
+  <Step title="Complete your prompt">
+    The connector is inserted into your prompt:
+    
+    ```bash
+    > $MyApp Tell me about recent notifications
+    ```
+  </Step>
+</Steps>
+
+### Which Apps Appear?
+
+The popover lists:
+- **Connected apps** - Apps you've already authorized, labeled as "connected"
+- **Available apps** - Apps that can be installed
+
+Connected apps appear first for easy access.
+
+## Managing Apps
+
+Use the `/apps` slash command to manage your connected apps.
+
+### Listing Available Apps
+
+```bash
+> /apps
+```
+
+This shows:
+- All available ChatGPT apps
+- Which apps are currently connected
+- Which apps can be installed
+
+### Example Output
+
+```
+Available Apps:
+
+1. GitHub (connected)
+   - Access repository data and create issues
+
+2. Linear (connected)
+   - Query and update Linear issues
+
+3. Slack
+   - Send messages and search conversations
+   - Status: Can be installed
+
+4. Google Calendar
+   - Read and create calendar events
+   - Status: Can be installed
+```
+
+## Configuring MCP Servers
+
+Codex can connect to Model Context Protocol (MCP) servers configured in `~/.codex/config.toml`.
+
+### What is MCP?
+
+The Model Context Protocol is a standardized way for AI applications to connect to external data sources and tools. MCP servers expose resources and tools that Codex can use.
+
+### Configuration
+
+Add MCP server configuration to your `config.toml`:
+
+```toml
+# ~/.codex/config.toml
+
+[[mcp_servers]]
+name = "filesystem"
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/allowed/directory"]
+env = {}
+
+[[mcp_servers]]
+name = "github"
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-github"]
+env = { GITHUB_TOKEN = "${GITHUB_TOKEN}" }
+```
+
+### Available MCP Servers
+
+Popular MCP servers include:
+
+<CardGroup cols={2}>
+  <Card title="Filesystem" icon="folder">
+    `@modelcontextprotocol/server-filesystem`
+    
+    Provides file system access to specified directories.
+  </Card>
+  
+  <Card title="GitHub" icon="github">
+    `@modelcontextprotocol/server-github`
+    
+    Access GitHub repositories, issues, and pull requests.
+  </Card>
+  
+  <Card title="Google Drive" icon="google">
+    `@modelcontextprotocol/server-gdrive`
+    
+    Read and write Google Drive documents.
+  </Card>
+  
+  <Card title="Slack" icon="slack">
+    `@modelcontextprotocol/server-slack`
+    
+    Send messages and search Slack conversations.
+  </Card>
+</CardGroup>
+
+<Info>
+See the [MCP documentation](https://modelcontextprotocol.io/) for a complete list of available servers.
+</Info>
+
+### Managing MCP Servers via CLI
+
+Codex provides commands to manage MCP servers:
+
+```bash
+# List configured MCP servers
+codex mcp list
+
+# Add a new MCP server
+codex mcp add <name> <command> [args...]
+
+# Get details about a specific MCP server
+codex mcp get <name>
+
+# Remove an MCP server
+codex mcp remove <name>
+```
+
+### Example: Adding GitHub MCP Server
+
+```bash
+codex mcp add github npx -y @modelcontextprotocol/server-github
+```
+
+## Using Codex as an MCP Server
+
+Codex can also function as an MCP server, allowing other MCP clients to use Codex as a tool.
+
+### Starting the MCP Server
+
+```bash
+codex mcp-server
+```
+
+This launches Codex in MCP server mode, exposing its capabilities to other agents.
+
+### Testing with MCP Inspector
+
+Test Codex as an MCP server using the official inspector:
+
+```bash
+npx @modelcontextprotocol/inspector codex mcp-server
+```
+
+This opens a web interface where you can:
+- See available tools
+- Test tool calls
+- View responses
+
+### Using Codex as a Tool
+
+Other agents can use Codex to:
+- Execute code in a sandboxed environment
+- Analyze codebases
+- Perform refactoring
+- Generate code with context awareness
+
+## Common Use Cases
+
+### Querying External Services
+
+```bash
+> $GitHub List all open PRs in the openai/codex repository
+```
+
+```bash
+> $Linear Show me all high-priority issues assigned to me
+```
+
+### Integrating Data into Code
+
+```bash
+> $GoogleSheets Read the data from the "Sales Q1" sheet and generate a Python script to analyze it
+```
+
+### Cross-Service Workflows
+
+```bash
+> $GitHub Get the latest issues labeled "bug" and $Linear create corresponding Linear issues for them
+```
+
+## Configuration Reference
+
+### Full MCP Server Configuration
+
+```toml
+# ~/.codex/config.toml
+
+[[mcp_servers]]
+# Name used to identify the server
+name = "my-service"
+
+# Command to launch the MCP server
+command = "node"
+
+# Arguments passed to the command
+args = ["/path/to/mcp-server.js"]
+
+# Environment variables
+env = {
+  API_KEY = "${MY_API_KEY}",  # Can reference env vars
+  BASE_URL = "https://api.example.com"
+}
+
+# Optional: Working directory
+workdir = "/path/to/working/directory"
+
+# Optional: Timeout in seconds
+timeout = 30
+```
+
+### Environment Variable Substitution
+
+MCP server configurations support environment variable substitution:
+
+```toml
+[[mcp_servers]]
+name = "authenticated-service"
+command = "npx"
+args = ["-y", "@company/mcp-server"]
+env = {
+  API_KEY = "${COMPANY_API_KEY}",
+  ENDPOINT = "${COMPANY_ENDPOINT}"
+}
+```
+
+Codex will substitute `${VAR_NAME}` with the value from your environment.
+
+## Security Considerations
+
+<Warning>
+Apps and MCP servers can access external services on your behalf. Only connect apps you trust and review permissions carefully.
+</Warning>
+
+### Best Practices
+
+<AccordionGroup>
+  <Accordion title="Review app permissions" icon="shield-check">
+    Before connecting an app, review what data it can access and what actions it can perform.
+  </Accordion>
+  
+  <Accordion title="Use environment variables for secrets" icon="key">
+    Store API keys and tokens in environment variables, not directly in config.toml:
+    
+    ```toml
+    env = { API_KEY = "${MY_SECRET_KEY}" }
+    ```
+  </Accordion>
+  
+  <Accordion title="Limit MCP server access" icon="lock">
+    For filesystem servers, only grant access to specific directories:
+    
+    ```toml
+    args = ["-y", "@modelcontextprotocol/server-filesystem", "~/Documents/safe-directory"]
+    ```
+  </Accordion>
+  
+  <Accordion title="Audit connected apps regularly" icon="list-check">
+    Periodically review connected apps with `/apps` and disconnect ones you no longer use.
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+### App Not Appearing in Popover
+
+1. Verify the app is installed and connected
+2. Run `/apps` to check connection status
+3. Restart Codex to refresh app connections
+
+### MCP Server Connection Failed
+
+1. Check that the server command is correct and accessible:
+   ```bash
+   # Test the command directly
+   npx -y @modelcontextprotocol/server-github
+   ```
+
+2. Verify environment variables are set:
+   ```bash
+   echo $GITHUB_TOKEN
+   ```
+
+3. Check Codex logs for detailed error messages:
+   ```bash
+   RUST_LOG=debug codex
+   ```
+
+### Permission Errors
+
+1. Ensure API keys have the necessary permissions
+2. Check that OAuth tokens haven't expired
+3. Re-authenticate the app if needed
+
+## Examples
+
+### Example: GitHub Integration
+
+```toml
+# ~/.codex/config.toml
+[[mcp_servers]]
+name = "github"
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-github"]
+env = { GITHUB_TOKEN = "${GITHUB_TOKEN}" }
+```
+
+Usage:
+
+```bash
+> $GitHub List all open issues with label "bug" in openai/codex
+> Create a summary of the most common issues
+```
+
+### Example: Notion Integration
+
+```toml
+# ~/.codex/config.toml
+[[mcp_servers]]
+name = "notion"
+command = "npx"
+args = ["-y", "@notionhq/mcp-server-notion"]
+env = { NOTION_API_KEY = "${NOTION_API_KEY}" }
+```
+
+Usage:
+
+```bash
+> $Notion Read the contents of my "Project Ideas" database and create a prioritized TODO list
+```
+
+### Example: Custom MCP Server
+
+```toml
+# ~/.codex/config.toml
+[[mcp_servers]]
+name = "company-api"
+command = "python"
+args = ["/opt/mcp-servers/company_api.py"]
+env = {
+  API_KEY = "${COMPANY_API_KEY}",
+  ENVIRONMENT = "production"
+}
+workdir = "/opt/mcp-servers"
+```
+
+Usage:
+
+```bash
+> $company-api Fetch customer data for account ID 12345 and generate a usage report
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="MCP Documentation" icon="book" href="https://modelcontextprotocol.io/">
+    Learn more about the Model Context Protocol
+  </Card>
+  
+  <Card title="Configuration Guide" icon="gear" href="/core-concepts/configuration">
+    Complete configuration reference
+  </Card>
+  
+  <Card title="Skills System" icon="puzzle-piece" href="/features/skills">
+    Create skills that use MCP servers
+  </Card>
+  
+  <Card title="Security" icon="shield" href="/core-concepts/security">
+    Understand Codex's security model
+  </Card>
+</CardGroup>

@@ -1,0 +1,327 @@
+---
+title: Skills
+description: Extend Codex with specialized knowledge, workflows, and tool integrations through modular skill packages
+---
+
+## What are Skills?
+
+Skills are modular, self-contained folders that extend Codex's capabilities by providing specialized knowledge, workflows, and tools. Think of them as "onboarding guides" for specific domains or tasks—they transform Codex from a general-purpose agent into a specialized agent equipped with procedural knowledge.
+
+### What Skills Provide
+
+Skills can include:
+
+1. **Specialized workflows** - Multi-step procedures for specific domains
+2. **Tool integrations** - Instructions for working with specific file formats or APIs
+3. **Domain expertise** - Company-specific knowledge, schemas, business logic
+4. **Bundled resources** - Scripts, references, and assets for complex and repetitive tasks
+
+## How Skills Work
+
+Skills use a three-level progressive disclosure system to manage context efficiently:
+
+<Steps>
+  <Step title="Metadata (name + description)">
+    Always loaded in context (~100 words). This helps Codex determine when to use the skill.
+  </Step>
+  <Step title="SKILL.md body">
+    Loaded when the skill triggers (less than 5k words). Contains instructions and workflows.
+  </Step>
+  <Step title="Bundled resources">
+    Loaded as needed by Codex. Scripts can be executed without reading into context.
+  </Step>
+</Steps>
+
+## Skill Structure
+
+Every skill follows this structure:
+
+```
+skill-name/
+├── SKILL.md (required)
+│   ├── YAML frontmatter metadata (required)
+│   │   ├── name: (required)
+│   │   └── description: (required)
+│   └── Markdown instructions (required)
+├── agents/ (recommended)
+│   └── openai.yaml - UI metadata for skill lists
+└── Bundled Resources (optional)
+    ├── scripts/          - Executable code (Python/Bash/etc.)
+    ├── references/       - Documentation loaded as needed
+    └── assets/           - Files used in output (templates, icons, etc.)
+```
+
+### SKILL.md (Required)
+
+The main skill file consists of:
+
+- **Frontmatter (YAML)**: Contains `name` and `description` fields. These are critical—Codex reads them to determine when to use the skill.
+- **Body (Markdown)**: Instructions and guidance for using the skill. Only loaded after the skill triggers.
+
+<Note>
+The description in the frontmatter is the primary triggering mechanism. Include both what the skill does and specific triggers/contexts for when to use it.
+</Note>
+
+### Bundled Resources (Optional)
+
+<CardGroup cols={3}>
+  <Card title="Scripts" icon="code">
+    Executable code for tasks requiring deterministic reliability. Token efficient and may be executed without loading into context.
+    
+    Example: `scripts/rotate_pdf.py` for PDF rotation
+  </Card>
+  
+  <Card title="References" icon="book">
+    Documentation loaded as needed to inform Codex's process. Keeps SKILL.md lean.
+    
+    Example: `references/api_docs.md` for API specifications
+  </Card>
+  
+  <Card title="Assets" icon="image">
+    Files used in output, not loaded into context.
+    
+    Example: `assets/logo.png` for brand assets
+  </Card>
+</CardGroup>
+
+## Installing Skills
+
+Skills are stored in `$CODEX_HOME/skills/` (typically `~/.codex/skills/`).
+
+### System Skills (Built-in)
+
+Codex comes with built-in system skills that are automatically installed to `$CODEX_HOME/skills/.system/` on startup. These include:
+
+- **skill-creator**: Guide for creating effective skills
+- **skill-installer**: Install skills from GitHub repositories
+
+System skills are updated automatically when you update Codex.
+
+### Installing Additional Skills
+
+Use the built-in `skill-installer` skill to install additional skills:
+
+<CodeGroup>
+```bash List Available Skills
+# In Codex, type:
+/use skill-installer
+"List available skills"
+```
+
+```bash Install a Skill
+# In Codex, type:
+"Install the [skill-name] skill"
+```
+
+```bash Install from GitHub
+# Install from a GitHub repository:
+"Install the skill from github.com/owner/repo/path/to/skill"
+```
+</CodeGroup>
+
+<Note>
+After installing a new skill, restart Codex to pick it up.
+</Note>
+
+## Creating a Skill
+
+Codex includes a built-in `skill-creator` skill that guides you through the skill creation process.
+
+### Quick Start
+
+<Steps>
+  <Step title="Load the skill-creator">
+    ```bash
+    /use skill-creator
+    ```
+  </Step>
+  
+  <Step title="Describe your skill">
+    Tell Codex what you want the skill to do and provide examples:
+    
+    "I want to create a skill for rotating and editing PDF files. Users should be able to say things like 'rotate this PDF 90 degrees' or 'extract text from this PDF'."
+  </Step>
+  
+  <Step title="Let Codex create it">
+    Codex will:
+    - Plan the reusable skill contents (scripts, references, assets)
+    - Initialize the skill directory with proper structure
+    - Generate SKILL.md with frontmatter and instructions
+    - Create any necessary helper scripts
+  </Step>
+  
+  <Step title="Validate and iterate">
+    ```bash
+    # Codex will run validation automatically
+    scripts/quick_validate.py path/to/skill-folder
+    ```
+  </Step>
+</Steps>
+
+### Skill Creation Process
+
+The skill-creator follows this workflow:
+
+1. **Understand the skill** - Gather concrete examples of how the skill will be used
+2. **Plan reusable contents** - Identify scripts, references, and assets needed
+3. **Initialize the skill** - Run `init_skill.py` to create the structure
+4. **Edit the skill** - Implement resources and write SKILL.md
+5. **Validate the skill** - Run `quick_validate.py` to check for issues
+6. **Iterate** - Test on real tasks and improve based on feedback
+
+## Skill Design Principles
+
+### Concise is Key
+
+The context window is a public good. Skills share it with everything else Codex needs: system prompt, conversation history, other skills' metadata, and the actual user request.
+
+<Warning>
+Default assumption: Codex is already very smart. Only add context Codex doesn't already have. Challenge each piece of information: "Does Codex really need this explanation?"
+</Warning>
+
+Prefer concise examples over verbose explanations.
+
+### Progressive Disclosure
+
+Keep SKILL.md under 500 lines. When approaching this limit, split content into separate files:
+
+<CodeGroup>
+```markdown Pattern 1: High-level guide with references
+# PDF Processing
+
+## Quick start
+
+Extract text with pdfplumber:
+[code example]
+
+## Advanced features
+
+- **Form filling**: See [FORMS.md](FORMS.md) for complete guide
+- **API reference**: See [REFERENCE.md](REFERENCE.md) for all methods
+```
+
+```markdown Pattern 2: Domain-specific organization
+# BigQuery Skill
+
+For domain-specific queries, see:
+- **Finance metrics**: See references/finance.md
+- **Sales data**: See references/sales.md
+- **Product analytics**: See references/product.md
+```
+</CodeGroup>
+
+### Set Appropriate Degrees of Freedom
+
+Match the level of specificity to the task's fragility:
+
+- **High freedom** (text instructions): Multiple approaches are valid, decisions depend on context
+- **Medium freedom** (pseudocode/parameterized scripts): Preferred pattern exists, some variation acceptable
+- **Low freedom** (specific scripts): Operations are fragile, consistency is critical
+
+## Using Skills
+
+### Automatic Triggering
+
+Codex automatically loads skills based on the context of your request. The skill's `description` in the frontmatter determines when it triggers.
+
+### Manual Loading
+
+You can explicitly load a skill using the `/use` command:
+
+```bash
+/use skill-name
+```
+
+This ensures the skill is loaded for your current task.
+
+## Managing Skills
+
+### Disabling Project Docs
+
+Skills can be disabled using:
+
+```bash
+codex --no-project-doc
+```
+
+Or set the environment variable:
+
+```bash
+export CODEX_DISABLE_PROJECT_DOC=1
+```
+
+### Skills Location
+
+Skills are installed to:
+- **User skills**: `$CODEX_HOME/skills/` (typically `~/.codex/skills/`)
+- **System skills**: `$CODEX_HOME/skills/.system/` (auto-installed)
+
+## Examples
+
+### Example: PDF Editor Skill
+
+A skill for PDF operations:
+
+```yaml
+---
+name: pdf-editor
+description: Edit and manipulate PDF files. Use when the user needs to rotate, merge, extract text, or perform other PDF operations.
+---
+```
+
+Bundled resources:
+- `scripts/rotate_pdf.py` - Rotate PDF pages
+- `scripts/merge_pdfs.py` - Merge multiple PDFs
+- `references/pdf_operations.md` - Advanced PDF manipulation guide
+
+### Example: BigQuery Skill
+
+A skill for querying a company database:
+
+```yaml
+---
+name: bigquery-analytics
+description: Query company BigQuery database for analytics. Use when the user asks questions about user metrics, revenue, or product usage data.
+---
+```
+
+Bundled resources:
+- `references/schema.md` - Database schema documentation
+- `references/finance.md` - Finance and revenue metrics
+- `references/product.md` - Product usage metrics
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Keep skills focused">
+    Each skill should have a clear, single purpose. Don't create mega-skills that try to do everything.
+  </Accordion>
+  
+  <Accordion title="Test your scripts">
+    Always test bundled scripts by running them to ensure they work correctly. Scripts should be deterministic and reliable.
+  </Accordion>
+  
+  <Accordion title="Avoid duplication">
+    Information should live in either SKILL.md or reference files, not both. Prefer reference files for detailed information.
+  </Accordion>
+  
+  <Accordion title="Include only essential files">
+    Don't create README.md, CHANGELOG.md, or other auxiliary documentation. Skills should only contain information needed for the AI agent to do the job.
+  </Accordion>
+  
+  <Accordion title="Use clear naming">
+    Use lowercase letters, digits, and hyphens only. Prefer short, verb-led phrases that describe the action (e.g., `rotate-pdf`, not `pdf-rotation-tool`).
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Create Your First Skill" icon="plus" href="/guides/create-skill">
+    Follow the step-by-step guide to create a custom skill
+  </Card>
+  
+  <Card title="Browse Available Skills" icon="store" href="https://github.com/openai/skills">
+    Explore curated skills in the official skills repository
+  </Card>
+</CardGroup>

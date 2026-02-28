@@ -1,80 +1,249 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get up and running with Codex CLI in minutes
 ---
 
-## Get started in three steps
+# Quickstart
 
-Get your documentation site running locally and make your first customization.
+This guide will help you get Codex CLI running and execute your first commands. You'll go from installation to your first AI-powered task in just a few minutes.
 
-### Step 1: Set up your local environment
+## Before you begin
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+Make sure you have:
 
-### Step 2: Deploy your changes
+- Codex CLI installed (see [Installation](/installation))
+- A ChatGPT account (Plus, Pro, Team, Edu, or Enterprise) or an OpenAI API key
+- A terminal running macOS 12+, Linux (Ubuntu/Debian), or Windows 11 with WSL2
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
+## Get started with Codex
+
+<Steps>
+  <Step title="Install Codex CLI">
+    Install Codex globally using npm or Homebrew:
+
+    <CodeGroup>
+    ```bash npm
+    npm install -g @openai/codex
+    ```
+
+    ```bash Homebrew
+    brew install --cask codex
+    ```
+    </CodeGroup>
+
+    Verify the installation:
+
+    ```bash
+    codex --version
+    ```
+  </Step>
+
+  <Step title="Sign in with ChatGPT">
+    Run `codex` and select **Sign in with ChatGPT**. This is the recommended method for using Codex with your ChatGPT plan.
+
+    ```bash
+    codex
+    ```
+
+    When you run this command, Codex will:
+    1. Start a local login server on `http://localhost` (random port)
+    2. Open your browser to authenticate
+    3. Complete authentication and return to the terminal
+
+    <Note>
+    We recommend signing into your ChatGPT account to use Codex as part of your Plus, Pro, Team, Edu, or Enterprise plan. [Learn more about what's included in your ChatGPT plan](https://help.openai.com/en/articles/11369540-codex-in-chatgpt).
+    </Note>
+
+    **On a remote or headless machine?** Use device code authentication instead:
+
+    ```bash
+    codex login --device-auth
+    ```
+
+    Alternatively, you can use an API key (see [Authentication](/authentication) for details).
+  </Step>
+
+  <Step title="Run your first command">
+    Once authenticated, run Codex interactively:
+
+    ```bash
+    codex
+    ```
+
+    Or provide a prompt directly:
+
+    ```bash
+    codex "explain this codebase to me"
+    ```
+
+    Codex will analyze your project and provide an explanation.
+  </Step>
+
+  <Step title="Try an example task">
+    Let's have Codex write a simple script. Try this command:
+
+    ```bash
+    codex "create a simple Python script that prints Hello World"
+    ```
+
+    Codex will:
+    1. Create a Python file
+    2. Write the code
+    3. Ask for your approval before saving (in default "suggest" mode)
+    4. Show you the result
+
+    You'll see output similar to:
+
+    ```
+    I'll create a simple Python script for you.
+
+    [Codex proposes changes]
+
+    Approve? [Y/n]:
+    ```
+
+    Type `y` to approve and apply the changes.
+  </Step>
+</Steps>
+
+## Understanding approval modes
+
+Codex operates in three approval modes that control how much autonomy the agent has:
+
+<CardGroup cols={3}>
+  <Card title="Suggest" icon="hand">
+    **Default mode**
+
+    Codex reads files and suggests changes. You approve all file writes and shell commands.
+  </Card>
+  <Card title="Auto Edit" icon="pen-to-square">
+    Codex reads and writes files automatically. You approve shell commands.
+
+    Use: `codex --approval-mode auto-edit`
+  </Card>
+  <Card title="Full Auto" icon="robot">
+    Codex reads, writes files, and executes commands autonomously. Everything runs in a sandbox.
+
+    Use: `codex --approval-mode full-auto`
+  </Card>
+</CardGroup>
+
+<Warning>
+In full auto mode, commands run network-disabled and confined to your working directory. Codex will warn you if your directory is not tracked by Git.
+</Warning>
+
+## Example workflows
+
+Here are some common tasks you can ask Codex to perform:
+
+<Accordion title="Refactor code">
+  ```bash
+  codex "Refactor the Dashboard component to React Hooks"
+  ```
+
+  Codex will:
+  - Read the component file
+  - Rewrite it using React Hooks
+  - Run tests to verify the changes
+  - Show you a diff of the changes
 </Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+<Accordion title="Generate tests">
+  ```bash
+  codex "Write unit tests for utils/date.ts"
+  ```
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
+  Codex will:
+  - Analyze the `date.ts` file
+  - Generate comprehensive unit tests
+  - Execute the tests
+  - Iterate until they pass
 </Accordion>
+
+<Accordion title="Create a full application">
+  ```bash
+  codex --approval-mode full-auto "create a todo-list app with React and TypeScript"
+  ```
+
+  Codex will:
+  - Scaffold the project structure
+  - Install dependencies
+  - Write the application code
+  - Run it in the sandbox
+  - Show you the live result
+</Accordion>
+
+<Accordion title="Fix errors">
+  ```bash
+  codex "fix all TypeScript errors in this project"
+  ```
+
+  Codex will:
+  - Run the TypeScript compiler
+  - Identify all type errors
+  - Fix them one by one
+  - Verify the fixes compile
+</Accordion>
+
+## Interactive vs non-interactive mode
+
+**Interactive mode** (default)
+
+Run `codex` to start an interactive REPL session:
+
+```bash
+codex
+```
+
+You can have a back-and-forth conversation with Codex, approve changes, and iterate on tasks.
+
+**Non-interactive mode**
+
+Provide a prompt as a command-line argument:
+
+```bash
+codex "create a README for this project"
+```
+
+Codex will execute the task and exit when complete.
+
+**Quiet mode** (for CI/CD)
+
+Run Codex headless in pipelines:
+
+```bash
+codex -q "update CHANGELOG for next release"
+```
+
+Or set the environment variable:
+
+```bash
+export CODEX_QUIET_MODE=1
+```
+
+## Passing images
+
+Codex is multimodal and can understand images. Pass screenshots or diagrams:
+
+```bash
+codex -i screenshot.png "implement this design"
+```
+
+Codex will analyze the image and implement the visual design.
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Learn about authentication" icon="key" href="/authentication">
+    Explore all authentication methods and configuration options
+  </Card>
+  <Card title="Core concepts" icon="book" href="/core-concepts">
+    Understand approval modes, sandboxing, and security model
+  </Card>
+  <Card title="Configuration" icon="gear" href="/configuration">
+    Customize Codex with config files and environment variables
+  </Card>
+  <Card title="CLI reference" icon="terminal" href="/cli-reference">
+    Explore all available commands and options
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

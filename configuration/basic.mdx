@@ -1,0 +1,300 @@
+---
+title: Basic Configuration
+description: Essential Codex CLI configuration options
+---
+
+This guide covers the most common configuration options you'll need to get started with Codex CLI.
+
+## Model Selection
+
+Choose which AI model Codex uses for conversations:
+
+```toml
+# Use GPT-4.1 as the default model
+model = "gpt-4.1"
+
+# Or use o4-mini for faster, more cost-effective responses
+model = "o4-mini"
+```
+
+<Note>
+The default model is `o4-mini`. Run `codex --model <model-name>` to override for a single session.
+</Note>
+
+### Available Models
+
+Common model options:
+- `o4-mini` - Fast, cost-effective reasoning model (default)
+- `gpt-4.1` - Latest GPT-4 with enhanced capabilities
+- `gpt-5.1` - Advanced GPT-5 model
+- `gpt-5.1-codex` - GPT-5 optimized for code
+
+## Approval Policies
+
+Control when Codex asks for permission before executing commands:
+
+```toml
+approval_policy = "on-request"
+```
+
+<ParamField path="approval_policy" type="string" default="untrusted">
+  Determines when the user is consulted to approve operations.
+  
+  **Options:**
+  - `"untrusted"` - Only auto-approve safe read operations; ask for everything else
+  - `"on-request"` - The model decides when to ask for approval
+  - `"on-failure"` - DEPRECATED: Auto-approve sandboxed commands, escalate on failure
+  - `"never"` - Never ask; failures return immediately to the model
+</ParamField>
+
+### Approval Policy Details
+
+<AccordionGroup>
+  <Accordion title="untrusted (Default)">
+    Under this policy, only "known safe" commands that **only read files** are auto-approved. Everything else will ask the user to approve.
+    
+    **Best for**: Interactive use when you want visibility into all operations
+  </Accordion>
+  
+  <Accordion title="on-request">
+    The AI model decides when to ask the user for approval based on the operation's risk and context.
+    
+    **Best for**: Balanced interactive use with intelligent approval prompting
+  </Accordion>
+  
+  <Accordion title="never">
+    Commands are never escalated to the user for approval. Failures are immediately returned to the model to handle programmatically.
+    
+    **Best for**: Fully automated workflows, CI/CD pipelines
+  </Accordion>
+</AccordionGroup>
+
+## Sandbox Mode
+
+Define execution boundaries for safety:
+
+```toml
+sandbox_mode = "workspace-write"
+```
+
+<ParamField path="sandbox_mode" type="string" default="workspace-write">
+  Controls where Codex can read and write files.
+  
+  **Options:**
+  - `"read-only"` - Can only read files, no writes allowed
+  - `"workspace-write"` - Can read anywhere, write only in workspace
+  - `"danger-full-access"` - Full filesystem access (use with caution)
+</ParamField>
+
+<Warning>
+  `danger-full-access` mode disables safety restrictions. Only use in trusted environments.
+</Warning>
+
+### Workspace Write Configuration
+
+Customize the `workspace-write` sandbox behavior:
+
+```toml
+[sandbox_workspace_write]
+network_access = false
+exclude_slash_tmp = false
+exclude_tmpdir_env_var = false
+writable_roots = ["/additional/writable/path"]
+```
+
+<ParamField path="sandbox_workspace_write.network_access" type="boolean" default="false">
+  Allow network access in workspace-write mode
+</ParamField>
+
+<ParamField path="sandbox_workspace_write.writable_roots" type="array" default="[]">
+  Additional directories where writes are allowed (absolute paths)
+</ParamField>
+
+## API Authentication
+
+### OpenAI API Key
+
+Set your OpenAI API key via environment variable:
+
+```bash
+export OPENAI_API_KEY="sk-..."
+```
+
+Or store it in a `.env` file in your project root:
+
+```bash
+OPENAI_API_KEY=sk-...
+```
+
+### ChatGPT Login
+
+Alternatively, authenticate with your ChatGPT account:
+
+```bash
+codex login
+```
+
+### Credential Storage
+
+Configure where Codex stores authentication credentials:
+
+```toml
+cli_auth_credentials_store = "auto"
+```
+
+<ParamField path="cli_auth_credentials_store" type="string" default="auto">
+  Where to store CLI authentication credentials.
+  
+  **Options:**
+  - `"file"` - Store in `~/.codex/auth.json`
+  - `"keyring"` - Use OS keyring (most secure)
+  - `"auto"` - Prefer keyring, fall back to file
+  - `"ephemeral"` - Memory only (current process)
+</ParamField>
+
+## System Instructions
+
+Customize Codex's behavior with custom instructions:
+
+```toml
+instructions = """
+Always use TypeScript for new files.
+Prefer functional programming patterns.
+Write tests for all new functions.
+"""
+```
+
+<Note>
+  For project-specific guidance, use `AGENTS.md` files instead of global instructions. See [Custom Instructions](/guides/custom-instructions).
+</Note>
+
+## TUI Settings
+
+Customize the terminal interface:
+
+```toml
+[tui]
+# Enable desktop notifications
+notifications = true
+
+# Control alternate screen mode
+alternate_screen = "auto"
+
+# Enable animations
+animations = true
+
+# Show startup tooltips
+show_tooltips = true
+```
+
+<ParamField path="tui.notifications" type="boolean" default="true">
+  Enable desktop notifications when terminal is unfocused
+</ParamField>
+
+<ParamField path="tui.alternate_screen" type="string" default="auto">
+  Controls whether the TUI uses alternate screen buffer.
+  
+  **Options:**
+  - `"auto"` - Disable in Zellij, enable elsewhere
+  - `"always"` - Always use alternate screen
+  - `"never"` - Never use alternate screen (preserves scrollback)
+</ParamField>
+
+<ParamField path="tui.animations" type="boolean" default="true">
+  Enable welcome screen animations and effects
+</ParamField>
+
+## Notification Command
+
+Run a custom command when Codex completes a turn:
+
+```toml
+notify = ["terminal-notifier", "-title", "Codex", "-message", "Task complete"]
+```
+
+The notification hook receives a JSON payload on stdin with turn details.
+
+## History Settings
+
+Configure conversation history persistence:
+
+```toml
+[history]
+persistence = "save-all"
+max_bytes = 10485760  # 10MB limit
+```
+
+<ParamField path="history.persistence" type="string" default="save-all">
+  Whether to save conversation history.
+  
+  **Options:**
+  - `"save-all"` - Save all history to `~/.codex/history.jsonl`
+  - `"none"` - Don't save history to disk
+</ParamField>
+
+<ParamField path="history.max_bytes" type="integer">
+  Maximum history file size in bytes. Oldest entries are dropped when exceeded.
+</ParamField>
+
+## Analytics & Telemetry
+
+```toml
+[analytics]
+enabled = true
+
+[feedback]
+enabled = true
+```
+
+<ParamField path="analytics.enabled" type="boolean" default="true">
+  Enable usage analytics collection
+</ParamField>
+
+<ParamField path="feedback.enabled" type="boolean" default="true">
+  Enable feedback prompts in the UI
+</ParamField>
+
+## Example Basic Configuration
+
+Here's a complete basic configuration:
+
+```toml
+# ~/.codex/config.toml
+
+# Core settings
+model = "gpt-4.1"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+# Custom instructions
+instructions = """
+Prefer TypeScript over JavaScript.
+Write comprehensive tests.
+"""
+
+# TUI preferences
+[tui]
+notifications = true
+alternate_screen = "auto"
+animations = true
+
+# History
+[history]
+persistence = "save-all"
+max_bytes = 10485760
+
+# Privacy
+[analytics]
+enabled = true
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Advanced Configuration" icon="gears" href="/configuration/advanced">
+    Explore profiles, reasoning effort, and more
+  </Card>
+  <Card title="Custom Providers" icon="plug" href="/configuration/custom-providers">
+    Use alternative AI providers
+  </Card>
+</CardGroup>

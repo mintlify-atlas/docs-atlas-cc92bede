@@ -1,0 +1,434 @@
+---
+title: Code Review
+description: Get AI-powered code reviews that catch bugs, security issues, and maintainability problems
+---
+
+## What is Code Review?
+
+Codex includes a specialized code review mode that analyzes your changes for bugs, security vulnerabilities, and maintainability issues. It provides structured feedback with priority levels, helping you catch problems before they reach production.
+
+<Note>
+Code review in Codex is powered by a dedicated review agent with specialized instructions focused on finding actionable issues.
+</Note>
+
+## Starting a Review
+
+Trigger a code review using the `/review` slash command:
+
+```bash
+> /review
+```
+
+Codex will:
+1. Analyze your current changes (staged and unstaged)
+2. Spawn a sub-agent with specialized review instructions
+3. Provide structured feedback with priority levels
+4. Output an overall correctness verdict
+5. Automatically exit review mode when complete
+
+## How It Works
+
+<Steps>
+  <Step title="Review mode activated">
+    When you run `/review`, Codex enters a specialized review mode.
+  </Step>
+  
+  <Step title="Sub-agent spawned">
+    A dedicated review sub-agent is created with:
+    - Specialized review prompt and guidelines
+    - Auto-approval enabled (no interruptions)
+    - Web search and collaborative tools disabled
+    - Custom review model (if configured)
+  </Step>
+  
+  <Step title="Code analysis">
+    The review agent analyzes your changes, looking for:
+    - Bugs and logic errors
+    - Security vulnerabilities
+    - Performance issues
+    - Maintainability problems
+    - Style violations (only if they obscure meaning)
+  </Step>
+  
+  <Step title="Structured output">
+    The agent provides findings with:
+    - Priority level (P0-P3)
+    - Clear title and description
+    - Code location (file and line range)
+    - Confidence score
+    - Suggestion blocks (when applicable)
+  </Step>
+  
+  <Step title="Overall verdict">
+    An overall correctness assessment:
+    - "Patch is correct" - No blocking issues found
+    - "Patch is incorrect" - Blocking issues that must be addressed
+  </Step>
+</Steps>
+
+## Review Output Format
+
+### Finding Structure
+
+Each finding includes:
+
+- **Title**: Short, imperative description (≤80 chars) with priority tag
+- **Body**: Explanation of why it's a problem, with file/line/function references
+- **Priority**: P0 (critical) to P3 (nice-to-have)
+- **Confidence Score**: 0.0-1.0 indicating reviewer confidence
+- **Code Location**: Absolute file path and line range
+- **Suggestion Block** (optional): Concrete replacement code
+
+### Priority Levels
+
+| Level | Description | When to Use |
+|-------|-------------|-------------|
+| **P0** | Drop everything to fix | Blocking release, operations, or major usage. Universal issues. |
+| **P1** | Urgent | Should be addressed in the next cycle |
+| **P2** | Normal | To be fixed eventually |
+| **P3** | Low | Nice to have |
+
+### Example Output
+
+```
+Review Findings:
+
+[P1] Unvalidated user input in database query
+
+The function `getUserById` in src/db.ts:42 uses user input directly in 
+the SQL query without validation or parameterization, creating a SQL 
+injection vulnerability. Attackers could execute arbitrary SQL commands.
+
+Location: src/db.ts:42-45
+Confidence: 0.95
+
+```suggestion
+const result = await db.query(
+  'SELECT * FROM users WHERE id = $1',
+  [userId]
+);
+```
+
+---
+
+[P2] Missing error handling for async operation
+
+The `fetchData` call in src/api.ts:88 lacks error handling. If the 
+request fails, the error will propagate unhandled, potentially crashing 
+the application.
+
+Location: src/api.ts:88
+Confidence: 0.85
+
+```suggestion
+try {
+  const data = await fetchData(url);
+  return data;
+} catch (error) {
+  logger.error('Failed to fetch data', { error });
+  throw new AppError('Data fetch failed', { cause: error });
+}
+```
+
+---
+
+Overall Correctness: Patch is incorrect
+
+The P1 security vulnerability must be addressed before merging. The P2 
+error handling issue should also be fixed to improve reliability.
+```
+
+## Review Guidelines
+
+The review agent follows these principles:
+
+### What Gets Flagged
+
+Issues are flagged when they:
+
+1. **Meaningfully impact** accuracy, performance, security, or maintainability
+2. **Are discrete and actionable** (not general codebase issues)
+3. **Match the codebase's rigor level** (don't demand excessive rigor for scripts)
+4. **Were introduced in the current changes** (not pre-existing bugs)
+5. **The author would likely fix** if made aware
+6. **Don't rely on unstated assumptions** about the codebase
+7. **Are provably affected** (not just speculation)
+8. **Aren't intentional changes** by the author
+
+### What Doesn't Get Flagged
+
+- Trivial style issues (unless they obscure meaning)
+- Personal preferences
+- Issues that violate unstated conventions
+- Pre-existing bugs not touched by this change
+- Speculative problems without concrete evidence
+- Intentional design decisions
+
+### Comment Guidelines
+
+Review comments:
+
+1. Are **clear about why** the issue is a bug
+2. **Appropriately communicate severity** (no exaggeration)
+3. Are **brief** (body is at most 1 paragraph)
+4. Include **code chunks ≤3 lines** (use inline code or blocks)
+5. **Explicitly state scenarios** where the bug arises
+6. Use **matter-of-fact tone** (not accusatory or overly positive)
+7. Are **immediately graspable** without close reading
+8. **Avoid excessive flattery** and unhelpful comments
+
+## Configuration
+
+### Using a Different Review Model
+
+You can configure a specific model for code review:
+
+```toml
+# ~/.codex/config.toml
+
+# Use a more powerful model for reviews
+review_model = "gpt-4o"
+
+# Or use a specialized reasoning model
+review_model = "o1-mini"
+```
+
+If not set, reviews use the same model as your current session.
+
+### Custom Review Guidelines
+
+Add project-specific review guidelines to your `AGENTS.md`:
+
+```markdown
+# Code Review Guidelines
+
+## Security
+
+- All database queries must use parameterized statements
+- Never log sensitive data (passwords, API keys, PII)
+- All user input must be validated before processing
+
+## Performance
+
+- Database queries in loops are not allowed
+- Large datasets (>1000 items) must be paginated
+- Heavy computations should be async or background jobs
+
+## Testing
+
+- All public API endpoints must have integration tests
+- Business logic must have unit test coverage
+- Mock external services in tests
+```
+
+The review agent will see these guidelines and apply them.
+
+## Use Cases
+
+### Pre-Commit Review
+
+```bash
+# Make your changes
+git add .
+
+# Run review before committing
+codex
+> /review
+
+# Address any findings
+# Commit when review passes
+git commit -m "Add user authentication"
+```
+
+### PR Review
+
+```bash
+# Checkout the PR branch
+git checkout feature-branch
+
+# Review the changes
+codex
+> /review
+
+# Leave feedback or approve
+```
+
+### CI Integration
+
+Run code review in CI/CD pipelines:
+
+```yaml
+# .github/workflows/review.yml
+name: Code Review
+
+on: [pull_request]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Run Codex Review
+        run: |
+          codex exec "/review" --ephemeral
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+```
+
+## Advanced Usage
+
+### Reviewing Specific Files
+
+Review only specific files:
+
+```bash
+> /review
+> "Review only the changes in src/auth/"
+```
+
+### Focused Review
+
+Ask for a focused review:
+
+```bash
+> /review
+> "Focus on security vulnerabilities"
+```
+
+```bash
+> /review
+> "Check for performance issues only"
+```
+
+### Re-reviewing After Fixes
+
+```bash
+# First review
+> /review
+
+# Fix the issues
+# ...
+
+# Review again
+> /review
+> "Verify that the P1 security issue is fixed"
+```
+
+## Interpreting Results
+
+### Overall Correctness: "Patch is correct"
+
+Meaning:
+- No blocking issues found
+- Existing code and tests won't break
+- The patch is free of bugs and blocking problems
+- Non-blocking issues (style, formatting, nits) are ignored
+
+You can proceed with confidence.
+
+### Overall Correctness: "Patch is incorrect"
+
+Meaning:
+- At least one blocking issue (usually P0 or P1) was found
+- The issue will cause bugs, security problems, or breakage
+- You should address the findings before merging
+
+Review the findings and fix blocking issues.
+
+### Confidence Scores
+
+Each finding includes a confidence score (0.0-1.0):
+
+- **0.9-1.0**: Very confident - almost certainly a real issue
+- **0.7-0.9**: Confident - likely a real issue
+- **0.5-0.7**: Moderate confidence - worth investigating
+- **Less than 0.5**: Low confidence - may be a false positive
+
+Prioritize high-confidence findings.
+
+## Tips for Better Reviews
+
+<AccordionGroup>
+  <Accordion title="Stage meaningful changes" icon="check">
+    Stage related changes together for more coherent reviews:
+    
+    ```bash
+    # Review authentication changes
+    git add src/auth/
+    codex
+    > /review
+    
+    # Then review API changes separately
+    git add src/api/
+    codex
+    > /review
+    ```
+  </Accordion>
+  
+  <Accordion title="Provide context" icon="message">
+    Give the reviewer context about your changes:
+    
+    ```bash
+    > /review
+    > "This refactors the authentication system to use JWT tokens instead of sessions. The old session code is being removed."
+    ```
+  </Accordion>
+  
+  <Accordion title="Review incrementally" icon="layer-group">
+    For large changes, review in stages:
+    
+    1. Review the core logic first
+    2. Then review the integration
+    3. Finally review tests and documentation
+  </Accordion>
+  
+  <Accordion title="Set up project guidelines" icon="book">
+    Document your standards in AGENTS.md so the reviewer knows what to look for.
+  </Accordion>
+  
+  <Accordion title="Use a powerful model" icon="brain">
+    Configure a reasoning model for more thorough reviews:
+    
+    ```toml
+    review_model = "o1-mini"
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Limitations
+
+<Warning>
+Code review is a helpful tool but not a replacement for human review, especially for:
+
+- Architecture decisions
+- API design
+- User experience considerations
+- Business logic correctness
+- Complex domain-specific requirements
+</Warning>
+
+Best used as:
+- A first pass to catch obvious issues
+- A sanity check before requesting human review
+- A teaching tool to learn about common mistakes
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Slash Commands" icon="terminal" href="/features/slash-commands">
+    Learn about other slash commands
+  </Card>
+  
+  <Card title="Configuration" icon="gear" href="/core-concepts/configuration">
+    Configure review model and settings
+  </Card>
+  
+  <Card title="Memory & Project Docs" icon="book" href="/features/memory">
+    Add project-specific review guidelines
+  </Card>
+  
+  <Card title="CI/CD Integration" icon="robot" href="/guides/ci-integration">
+    Integrate code review into your pipeline
+  </Card>
+</CardGroup>

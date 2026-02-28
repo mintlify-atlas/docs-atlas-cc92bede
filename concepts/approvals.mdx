@@ -1,0 +1,439 @@
+---
+title: Approvals
+description: Control when Codex requires human oversight for sensitive operations
+---
+
+The approval system gives you fine-grained control over when Codex can execute commands, modify files, or perform other sensitive operations without human oversight.
+
+## Approval policies
+
+Codex supports four approval policies that determine when to prompt for permission:
+
+<Tabs>
+  <Tab title="on-request">
+    **On-request** (recommended default):
+    - Prompts when the agent needs to escape the sandbox
+    - Auto-approves operations that stay within sandbox boundaries
+    - Balances safety and productivity
+    
+    ```bash
+    codex --ask-for-approval on-request "install dependencies"
+    ```
+    
+    Use for: General development work
+  </Tab>
+  
+  <Tab title="unless-trusted">
+    **Unless-trusted**:
+    - Always prompts for approval
+    - Skips prompts only for commands covered by execpolicy rules
+    - Maximum oversight
+    
+    ```bash
+    codex --ask-for-approval unless-trusted "make changes"
+    ```
+    
+    Use for: Sensitive codebases, production systems
+  </Tab>
+  
+  <Tab title="never">
+    **Never**:
+    - Never prompts for approval
+    - Auto-approves all operations (within sandbox limits)
+    - Fastest, least safe
+    
+    ```bash
+    codex --ask-for-approval never "run tests"
+    ```
+    
+    Use for: Sandboxed environments, trusted automation
+  </Tab>
+  
+  <Tab title="on-failure">
+    **On-failure**:
+    - Runs commands in sandbox first
+    - Only prompts if sandbox execution fails
+    - Optimistic execution
+    
+    ```bash
+    codex --ask-for-approval on-failure "build project"
+    ```
+    
+    Use for: Commands likely to succeed in sandbox
+  </Tab>
+</Tabs>
+
+## Approval prompts
+
+When approval is required, you'll see an interactive prompt with details about the operation:
+
+### Command execution approval
+
+```
+┌─ Command Approval Required ────────────────────────────┐
+│ codex wants to run:                                    │
+│   npm install express cors dotenv                      │
+│                                                        │
+│ Working directory: /Users/me/project                   │
+│ Reason: Package installation requires network access   │
+│                                                        │
+│ Suggested rule: ["npm", "install"]                     │
+│                                                        │
+│ [a] Accept once                                        │
+│ [s] Accept for session                                 │
+│ [p] Accept and add to policy                           │
+│ [d] Decline                                            │
+│ [c] Cancel turn                                        │
+└────────────────────────────────────────────────────────┘
+```
+
+### File change approval
+
+```
+┌─ File Change Approval Required ────────────────────────┐
+│ codex wants to modify:                                 │
+│   • src/auth.ts (edit)                                 │
+│   • src/middleware/rate-limit.ts (create)              │
+│   • tests/auth.test.ts (edit)                          │
+│                                                        │
+│ Reason: Changes to authentication system               │
+│                                                        │
+│ [a] Accept                                             │
+│ [d] Decline                                            │
+└────────────────────────────────────────────────────────┘
+```
+
+## Approval decisions
+
+When prompted, you can choose from several approval levels:
+
+<Steps>
+  <Step title="Accept once">
+    Approve this specific operation only. The next similar operation will require approval again.
+  </Step>
+  
+  <Step title="Accept for session">
+    Approve this operation and automatically approve identical operations for the rest of this session. Resets when you restart Codex.
+  </Step>
+  
+  <Step title="Accept and add to policy">
+    Approve this operation and add an execpolicy rule so similar commands never require approval again (persists across sessions).
+  </Step>
+  
+  <Step title="Decline">
+    Reject this operation. The agent will receive an error and may try an alternative approach.
+  </Step>
+  
+  <Step title="Cancel turn">
+    Abort the entire current operation. The agent stops processing your request.
+  </Step>
+</Steps>
+
+## Execpolicy rules
+
+Execpolicy is Codex's policy engine for defining which commands are trusted. Rules are written in Starlark syntax and stored in `.codex/execpolicy/` files.
+
+### Rule structure
+
+```starlark
+# Allow npm install without approval
+prefix_rule(
+    pattern = ["npm", "install"],
+    decision = "allow",
+    justification = "Package installation is routine and safe in sandbox"
+)
+
+# Always prompt for git push
+prefix_rule(
+    pattern = ["git", "push"],
+    decision = "prompt",
+    justification = "Pushing code requires review"
+)
+
+# Forbid rm -rf
+prefix_rule(
+    pattern = ["rm", "-rf"],
+    decision = "forbidden",
+    justification = "Use git clean or individual file removal instead"
+)
+```
+
+### Decision levels
+
+- **`allow`** - Auto-approve matching commands (no prompt)
+- **`prompt`** - Always prompt for approval
+- **`forbidden`** - Never allow (show justification to agent)
+
+### Pattern matching
+
+Patterns match command prefixes in order:
+
+```starlark
+# Matches: cargo test
+# Matches: cargo test --all
+# Doesn't match: cargo build
+prefix_rule(
+    pattern = ["cargo", "test"]
+)
+
+# Alternatives using lists
+prefix_rule(
+    pattern = ["git", ["pull", "fetch"]]
+)
+# Matches: git pull
+# Matches: git fetch
+# Doesn't match: git push
+```
+
+### Host executables
+
+Constrain which absolute paths can match basename rules:
+
+```starlark
+host_executable(
+    name = "git",
+    paths = [
+        "/usr/bin/git",
+        "/opt/homebrew/bin/git"
+    ]
+)
+```
+
+With this definition:
+- `/usr/bin/git status` can match `["git", "status"]` rules
+- `/usr/local/bin/git status` cannot (not in allowed paths)
+
+### Testing rules
+
+Add inline tests to validate your rules:
+
+```starlark
+prefix_rule(
+    pattern = ["npm", "run", ["dev", "start"]],
+    decision = "allow",
+    # These should match
+    match = [
+        ["npm", "run", "dev"],
+        "npm run start"
+    ],
+    # These should not match
+    not_match = [
+        ["npm", "run", "build"],
+        "npm install"
+    ]
+)
+```
+
+### Checking rules
+
+Test a command against your policies:
+
+```bash
+codex execpolicy check \
+  --rules ~/.codex/execpolicy/default.rules \
+  --pretty \
+  npm install express
+```
+
+Output:
+```json
+{
+  "matchedRules": [
+    {
+      "prefixRuleMatch": {
+        "matchedPrefix": ["npm", "install"],
+        "decision": "allow",
+        "justification": "Package installation is routine and safe in sandbox"
+      }
+    }
+  ],
+  "decision": "allow"
+}
+```
+
+## Configuration
+
+Configure approval behavior in `~/.codex/config.toml`:
+
+```toml
+# Global approval policy
+approval_policy = "on-request"  # never | on-request | unless-trusted | on-failure
+
+# Execpolicy files to load
+[execpolicy]
+user_rules = [
+  "~/.codex/execpolicy/default.rules",
+  "~/.codex/execpolicy/project-specific.rules"
+]
+```
+
+### Per-project configuration
+
+Create project-specific rules in your repository:
+
+```bash
+# Project root
+.codex/
+  execpolicy/
+    rules.star  # Project-specific rules
+```
+
+Codex automatically loads rules from `.codex/execpolicy/` in your working directory.
+
+## Convenience flags
+
+Codex provides shortcuts for common approval configurations:
+
+### Full-auto mode
+
+Combines `--ask-for-approval on-request` with `--sandbox workspace-write`:
+
+```bash
+codex --full-auto "set up development environment"
+```
+
+This is ideal for:
+- Sandboxed CI/CD environments
+- Development tasks in trusted directories
+- Quick prototyping
+
+### YOLO mode (dangerous)
+
+Completely bypasses approvals and sandboxing:
+
+```bash
+codex --yolo "install system packages"
+```
+
+<Warning>
+  **NEVER use `--yolo` on untrusted inputs or in production.** This disables all safety checks. Only use in externally sandboxed environments.
+</Warning>
+
+## Approval prompts in app-server
+
+When using the app-server API, approval requests are JSON-RPC requests that clients must respond to:
+
+### Command approval request
+
+```json
+{
+  "method": "item/commandExecution/requestApproval",
+  "id": 42,
+  "params": {
+    "threadId": "thr_123",
+    "turnId": "turn_456",
+    "itemId": "cmd_789",
+    "command": ["npm", "install", "express"],
+    "cwd": "/Users/me/project",
+    "reason": "Package installation requires network access",
+    "proposedExecpolicyAmendment": {
+      "prefix": ["npm", "install"]
+    }
+  }
+}
+```
+
+### Client response
+
+```json
+{
+  "id": 42,
+  "result": {
+    "decision": "accept"  // accept | acceptForSession | acceptWithExecpolicyAmendment | decline | cancel
+  }
+}
+```
+
+## Best practices
+
+<CardGroup cols={2}>
+  <Card title="Start with on-request" icon="shield-check">
+    Provides good balance between safety and usability
+  </Card>
+  
+  <Card title="Build execpolicy rules incrementally" icon="list">
+    Add rules as you approve common operations
+  </Card>
+  
+  <Card title="Review policy suggestions" icon="eye">
+    Carefully examine suggested rules before accepting
+  </Card>
+  
+  <Card title="Use unless-trusted for sensitive work" icon="lock">
+    Maximum oversight for production or critical systems
+  </Card>
+  
+  <Card title="Test rules before deploying" icon="flask">
+    Use `codex execpolicy check` to validate rules
+  </Card>
+  
+  <Card title="Document justifications" icon="file-lines">
+    Add clear justifications to help future you understand rules
+  </Card>
+</CardGroup>
+
+## Advanced: Network approval
+
+Codex can prompt for network access on a per-host basis:
+
+```
+┌─ Network Access Required ──────────────────────────────┐
+│ codex wants to connect to:                             │
+│   registry.npmjs.org                                   │
+│                                                        │
+│ [a] Accept once                                        │
+│ [s] Accept for session                                 │
+│ [p] Allow this host permanently                        │
+│ [d] Decline                                            │
+└────────────────────────────────────────────────────────┘
+```
+
+Network approvals integrate with the same decision levels as command approvals.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Approval prompts not appearing">
+    Check your approval policy:
+    ```bash
+    codex -c approval_policy=unless-trusted "test"
+    ```
+    
+    Or verify config:
+    ```toml
+    # ~/.codex/config.toml
+    approval_policy = "unless-trusted"
+    ```
+  </Accordion>
+  
+  <Accordion title="Too many approval prompts">
+    Build execpolicy rules to auto-approve trusted commands:
+    - Accept with `[p]` when prompted to create rules
+    - Manually write rules in `.codex/execpolicy/`
+    - Use `--ask-for-approval on-request` instead of `unless-trusted`
+  </Accordion>
+  
+  <Accordion title="Policy rules not matching">
+    Test your rules explicitly:
+    ```bash
+    codex execpolicy check --rules ~/.codex/execpolicy/default.rules npm install
+    ```
+    
+    Check pattern syntax and ensure prefixes match exactly.
+  </Accordion>
+  
+  <Accordion title="Session approvals reset too quickly">
+    Session approvals only last for the current thread. Use execpolicy rules for persistent approvals across sessions.
+  </Accordion>
+</AccordionGroup>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Sandboxing" icon="shield" href="/concepts/sandboxing">
+    Understand how sandboxing complements approvals
+  </Card>
+  <Card title="Non-interactive mode" icon="robot" href="/concepts/non-interactive-mode">
+    Use approvals in automation
+  </Card>
+</CardGroup>

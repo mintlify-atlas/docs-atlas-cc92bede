@@ -1,0 +1,507 @@
+---
+title: Advanced Configuration
+description: Advanced Codex CLI configuration options for power users
+---
+
+This guide covers advanced configuration features including profiles, reasoning effort, SQLite state, and experimental options.
+
+## Configuration Profiles
+
+Profiles let you define multiple configuration presets and switch between them:
+
+```toml
+# Active profile
+profile = "careful"
+
+[profiles.careful]
+model = "gpt-4.1"
+approval_policy = "untrusted"
+sandbox_mode = "workspace-write"
+model_reasoning_effort = "high"
+
+[profiles.fast]
+model = "o4-mini"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+model_reasoning_effort = "low"
+
+[profiles.auto]
+model = "gpt-5.1"
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+model_reasoning_effort = "medium"
+```
+
+Switch profiles at runtime:
+
+```bash
+codex --profile fast
+codex --profile careful
+```
+
+<Note>
+  CLI flags always override profile settings. Profile settings override global config.
+</Note>
+
+## Reasoning Effort
+
+Control how much computational effort reasoning models spend on tasks:
+
+```toml
+# Global default
+model_reasoning_effort = "medium"
+
+# Separate effort for Plan mode
+plan_mode_reasoning_effort = "high"
+```
+
+<ParamField path="model_reasoning_effort" type="string">
+  Default reasoning effort for reasoning models.
+  
+  **Options:** `"none"`, `"minimal"`, `"low"`, `"medium"`, `"high"`, `"xhigh"`
+</ParamField>
+
+<ParamField path="plan_mode_reasoning_effort" type="string">
+  Reasoning effort override for Plan mode specifically.
+  
+  When unset, Plan mode uses its built-in default (currently `"medium"`). When explicitly set (including `"none"`), it overrides the Plan preset.
+</ParamField>
+
+### Reasoning Effort Guide
+
+<AccordionGroup>
+  <Accordion title="none - No reasoning overhead">
+    Fastest responses with no extended reasoning process. Use for simple queries or when speed is critical.
+  </Accordion>
+  
+  <Accordion title="minimal - Very light reasoning">
+    Minimal reasoning overhead for straightforward tasks.
+  </Accordion>
+  
+  <Accordion title="low - Light reasoning">
+    Light reasoning for tasks with moderate complexity.
+  </Accordion>
+  
+  <Accordion title="medium - Balanced (Default)">
+    Balanced reasoning effort suitable for most tasks.
+  </Accordion>
+  
+  <Accordion title="high - Deep reasoning">
+    Extended reasoning for complex problems requiring careful analysis.
+  </Accordion>
+  
+  <Accordion title="xhigh - Maximum reasoning">
+    Maximum reasoning effort for the most challenging problems.
+  </Accordion>
+</AccordionGroup>
+
+## Reasoning Summaries
+
+Configure how reasoning summaries are presented:
+
+```toml
+model_reasoning_summary = "auto"
+```
+
+<ParamField path="model_reasoning_summary" type="string" default="auto">
+  Controls reasoning summary detail level.
+  
+  **Options:**
+  - `"auto"` - Let the model decide
+  - `"concise"` - Brief summaries
+  - `"detailed"` - Comprehensive summaries
+  - `"none"` - Disable reasoning summaries
+</ParamField>
+
+## Model Verbosity
+
+Control output length for GPT-5 models:
+
+```toml
+model_verbosity = "medium"
+```
+
+<ParamField path="model_verbosity" type="string">
+  Controls output detail for GPT-5 models via Responses API.
+  
+  **Options:** `"low"`, `"medium"`, `"high"`
+</ParamField>
+
+## SQLite State Database
+
+Codex stores thread state, memories, and other persistent data in a SQLite database:
+
+```toml
+sqlite_home = "/custom/path/to/sqlite"
+```
+
+<ParamField path="sqlite_home" type="string">
+  Directory for SQLite state database.
+  
+  **Default behavior:**
+  - If `CODEX_SQLITE_HOME` env var is set, use that
+  - For workspace-write sandbox, default to temp directory
+  - Otherwise, default to `$CODEX_HOME`
+</ParamField>
+
+<Note>
+  The SQLite database contains thread history, memories, and state. Back it up regularly if important.
+</Note>
+
+## Custom Developer Instructions
+
+Provide model-specific instructions that appear as developer role messages:
+
+```toml
+developer_instructions = """
+You are working in a monorepo with these packages:
+- apps/web (Next.js)
+- apps/api (Express)
+- packages/shared (shared utilities)
+
+Always consider cross-package dependencies.
+"""
+```
+
+Or load from a file:
+
+```toml
+model_instructions_file = "~/.codex/instructions.md"
+```
+
+<Warning>
+  Using `model_instructions_file` overrides Codex's built-in instructions and may degrade performance. Use with caution.
+</Warning>
+
+## Shell Environment Policy
+
+Control which environment variables are inherited when running shell commands:
+
+```toml
+[shell_environment_policy]
+inherit = "core"
+exclude = ["AWS_.*", "SECRET_.*"]
+include_only = []
+
+[shell_environment_policy.set]
+PATH = "/usr/local/bin:/usr/bin:/bin"
+LANG = "en_US.UTF-8"
+```
+
+<ParamField path="shell_environment_policy.inherit" type="string">
+  Which environment variables to inherit.
+  
+  **Options:**
+  - `"core"` - Only essential variables (HOME, PATH, USER, etc.)
+  - `"all"` - Inherit full parent environment
+  - `"none"` - Start with empty environment
+</ParamField>
+
+<ParamField path="shell_environment_policy.exclude" type="array">
+  Regex patterns for variables to exclude (applied after inherit)
+</ParamField>
+
+<ParamField path="shell_environment_policy.include_only" type="array">
+  If set, only inherit variables matching these patterns
+</ParamField>
+
+<ParamField path="shell_environment_policy.set" type="object">
+  Explicitly set environment variables
+</ParamField>
+
+## Agent Configuration
+
+Configure multi-agent and hierarchical agent settings:
+
+```toml
+[agents]
+max_threads = 10
+max_depth = 3
+job_max_runtime_seconds = 3600
+```
+
+<ParamField path="agents.max_threads" type="integer">
+  Maximum concurrent agent threads. When unset, no limit is enforced.
+</ParamField>
+
+<ParamField path="agents.max_depth" type="integer">
+  Maximum nesting depth for spawned agents. Root sessions start at depth 0.
+</ParamField>
+
+<ParamField path="agents.job_max_runtime_seconds" type="integer">
+  Default maximum runtime in seconds for agent job workers.
+</ParamField>
+
+### Agent Roles
+
+Define custom agent roles with specific configurations:
+
+```toml
+[agents.researcher]
+config_file = "~/.codex/roles/researcher.toml"
+description = "Research-focused agent for gathering information"
+
+[agents.implementer]
+config_file = "~/.codex/roles/implementer.toml"
+description = "Implementation-focused agent for writing code"
+```
+
+## Tool Configuration
+
+Enable or disable specific tools:
+
+```toml
+[tools]
+view_image = true
+web_search = true
+```
+
+<ParamField path="tools.view_image" type="boolean">
+  Enable the `view_image` tool for attaching local images
+</ParamField>
+
+<ParamField path="tools.web_search" type="boolean">
+  Enable web search capabilities
+</ParamField>
+
+### Web Search Mode
+
+```toml
+web_search = "cached"
+```
+
+<ParamField path="web_search" type="string" default="disabled">
+  Controls web search tool behavior.
+  
+  **Options:**
+  - `"disabled"` - No web search
+  - `"cached"` - Use cached search results
+  - `"live"` - Perform live web searches
+</ParamField>
+
+## Network Permissions
+
+Configure network proxy and access controls:
+
+```toml
+[permissions.network]
+enabled = true
+mode = "limited"
+allowed_domains = ["api.example.com", "cdn.example.com"]
+denied_domains = ["malicious.com"]
+```
+
+<ParamField path="permissions.network.enabled" type="boolean">
+  Enable network proxy functionality
+</ParamField>
+
+<ParamField path="permissions.network.mode" type="string">
+  Network access mode.
+  
+  **Options:**
+  - `"limited"` - Restricted to allowed domains
+  - `"full"` - Full network access
+</ParamField>
+
+<ParamField path="permissions.network.allowed_domains" type="array">
+  List of allowed domain patterns
+</ParamField>
+
+<ParamField path="permissions.network.denied_domains" type="array">
+  List of explicitly denied domains
+</ParamField>
+
+## Memories Configuration
+
+Configure Codex's memory system:
+
+```toml
+[memories]
+use_memories = true
+generate_memories = true
+max_rollout_age_days = 30
+min_rollout_idle_hours = 12
+```
+
+<ParamField path="memories.use_memories" type="boolean">
+  Inject memory usage instructions into developer prompts
+</ParamField>
+
+<ParamField path="memories.generate_memories" type="boolean">
+  Enable automatic memory generation from threads
+</ParamField>
+
+<ParamField path="memories.max_rollout_age_days" type="integer">
+  Maximum age of threads used for memory generation
+</ParamField>
+
+<ParamField path="memories.min_rollout_idle_hours" type="integer">
+  Minimum idle time before creating memories from a thread (hours)
+</ParamField>
+
+## Ghost Snapshots (Undo)
+
+Configure ghost snapshots for the undo feature:
+
+```toml
+[ghost_snapshot]
+ignore_large_untracked_files = 10485760  # 10MB
+ignore_large_untracked_dirs = 1000  # files
+disable_warnings = false
+```
+
+<ParamField path="ghost_snapshot.ignore_large_untracked_files" type="integer">
+  Exclude untracked files larger than this many bytes
+</ParamField>
+
+<ParamField path="ghost_snapshot.ignore_large_untracked_dirs" type="integer">
+  Ignore untracked directories with this many files or more
+</ParamField>
+
+## OpenTelemetry Configuration
+
+Configure observability and tracing:
+
+```toml
+[otel]
+environment = "production"
+log_user_prompt = false
+
+[otel.trace_exporter.otlp-http]
+endpoint = "https://otel-collector.example.com"
+protocol = "binary"
+```
+
+<ParamField path="otel.environment" type="string" default="dev">
+  Environment tag for traces (dev, staging, prod, test)
+</ParamField>
+
+<ParamField path="otel.log_user_prompt" type="boolean" default="false">
+  Include user prompts in trace logs
+</ParamField>
+
+## JavaScript REPL Configuration
+
+Configure the JavaScript REPL feature:
+
+```toml
+js_repl_node_path = "/usr/local/bin/node"
+js_repl_node_module_dirs = [
+  "/usr/local/lib/node_modules",
+  "~/.npm-global/lib/node_modules"
+]
+```
+
+<ParamField path="js_repl_node_path" type="string">
+  Absolute path to Node.js runtime for js_repl
+</ParamField>
+
+<ParamField path="js_repl_node_module_dirs" type="array">
+  Ordered list of directories to search for Node modules
+</ParamField>
+
+## Feature Flags
+
+Enable experimental features:
+
+```toml
+[features]
+multi_agent = true
+memories = true
+web_search = true
+sqlite = true
+undo = true
+```
+
+<Note>
+  Feature flags control access to experimental or unstable features. Check the release notes for details on specific flags.
+</Note>
+
+## Windows-Specific Settings
+
+```toml
+[windows]
+sandbox = "elevated"
+```
+
+<ParamField path="windows.sandbox" type="string">
+  Windows sandbox mode.
+  
+  **Options:**
+  - `"elevated"` - Run with elevated permissions
+  - `"unelevated"` - Run without elevation
+</ParamField>
+
+## Example Advanced Configuration
+
+```toml
+# ~/.codex/config.toml
+
+profile = "development"
+
+[profiles.development]
+model = "gpt-5.1-codex"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+model_reasoning_effort = "medium"
+model_verbosity = "medium"
+
+[profiles.production]
+model = "gpt-4.1"
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+model_reasoning_effort = "high"
+
+sqlite_home = "~/.codex/data"
+
+developer_instructions = """
+Working in a TypeScript monorepo.
+Follow conventional commits.
+"""
+
+[shell_environment_policy]
+inherit = "core"
+exclude = ["AWS_.*", "SECRET_.*"]
+
+[agents]
+max_threads = 5
+max_depth = 3
+
+[tools]
+view_image = true
+web_search = true
+
+web_search = "cached"
+
+[permissions.network]
+enabled = true
+mode = "limited"
+allowed_domains = ["api.example.com"]
+
+[memories]
+use_memories = true
+generate_memories = true
+max_rollout_age_days = 30
+
+[tui]
+notifications = true
+alternate_screen = "auto"
+
+[history]
+persistence = "save-all"
+max_bytes = 20971520  # 20MB
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Custom Providers" icon="plug" href="/configuration/custom-providers">
+    Configure alternative AI providers
+  </Card>
+  <Card title="MCP Servers" icon="server" href="/configuration/mcp-servers">
+    Integrate Model Context Protocol servers
+  </Card>
+  <Card title="Configuration Reference" icon="book" href="/configuration/reference">
+    Complete reference of all options
+  </Card>
+</CardGroup>

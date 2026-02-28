@@ -1,0 +1,340 @@
+---
+title: codex mcp
+description: Manage external MCP (Model Context Protocol) servers
+---
+
+## Syntax
+
+```bash
+codex mcp <SUBCOMMAND> [OPTIONS]
+```
+
+## Description
+
+The `mcp` command manages external MCP servers that extend Codex's capabilities. MCP servers can provide additional tools, data sources, and integrations.
+
+## Subcommands
+
+- `list` - List configured MCP servers
+- `get` - Show details for a specific server
+- `add` - Add a new MCP server
+- `remove` - Remove an MCP server
+- `login` - Authenticate with an MCP server (OAuth)
+- `logout` - Remove MCP server credentials
+
+## codex mcp list
+
+List all configured MCP servers.
+
+```bash
+codex mcp list [--json]
+```
+
+<ParamField path="--json" type="boolean">
+  Output server list as JSON.
+</ParamField>
+
+### Examples
+
+```bash
+# List servers in table format
+codex mcp list
+
+# Output:
+# Name          Command              Args    Env    Cwd     Status    Auth
+# github-mcp    node                 main.js -       -       enabled   authenticated
+# local-tools   /usr/local/bin/mcp   -       -       -       enabled   unsupported
+
+# Get JSON output
+codex mcp list --json
+```
+
+## codex mcp get
+
+Show detailed configuration for a specific MCP server.
+
+```bash
+codex mcp get <NAME> [--json]
+```
+
+<ParamField path="NAME" type="string" required>
+  Name of the MCP server to display.
+</ParamField>
+
+<ParamField path="--json" type="boolean">
+  Output server details as JSON.
+</ParamField>
+
+### Examples
+
+```bash
+# Show server details
+codex mcp get github-mcp
+
+# Output:
+# github-mcp
+#   enabled: true
+#   transport: stdio
+#   command: node
+#   args: /path/to/github-mcp/main.js
+#   env: GITHUB_TOKEN=ghp_***
+#   remove: codex mcp remove github-mcp
+
+# Get JSON output
+codex mcp get github-mcp --json
+```
+
+## codex mcp add
+
+Add a new MCP server configuration.
+
+```bash
+# Add stdio server
+codex mcp add <NAME> -- <COMMAND> [ARGS...]
+
+# Add streamable HTTP server
+codex mcp add <NAME> --url <URL>
+```
+
+<ParamField path="NAME" type="string" required>
+  Name for the MCP server. Must contain only letters, numbers, hyphens, and underscores.
+</ParamField>
+
+### For stdio servers:
+
+<ParamField path="COMMAND" type="string" required>
+  Command to launch the MCP server.
+</ParamField>
+
+<ParamField path="--env" type="string">
+  Environment variables in KEY=VALUE format (repeatable).
+</ParamField>
+
+### For HTTP servers:
+
+<ParamField path="--url" type="string" required>
+  URL for a streamable HTTP MCP server.
+</ParamField>
+
+<ParamField path="--bearer-token-env-var" type="string">
+  Environment variable name containing a bearer token for authentication.
+</ParamField>
+
+### Examples
+
+```bash
+# Add stdio server with Node.js
+codex mcp add github-mcp -- node /path/to/server.js
+
+# Add with environment variables
+codex mcp add slack-mcp \
+  --env SLACK_TOKEN=xoxb-... \
+  --env SLACK_WORKSPACE=myteam \
+  -- node slack-server.js
+
+# Add Python-based MCP server
+codex mcp add python-tools -- python3 -m mcp_server
+
+# Add streamable HTTP server
+codex mcp add remote-mcp --url https://mcp.example.com
+
+# Add HTTP server with bearer token
+codex mcp add api-mcp \
+  --url https://api.example.com/mcp \
+  --bearer-token-env-var API_TOKEN
+```
+
+## codex mcp remove
+
+Remove an MCP server configuration.
+
+```bash
+codex mcp remove <NAME>
+```
+
+<ParamField path="NAME" type="string" required>
+  Name of the MCP server to remove.
+</ParamField>
+
+### Examples
+
+```bash
+# Remove a server
+codex mcp remove github-mcp
+
+# Output:
+# Removed global MCP server 'github-mcp'.
+
+# Attempt to remove non-existent server
+codex mcp remove unknown
+
+# Output:
+# No MCP server named 'unknown' found.
+```
+
+## codex mcp login
+
+Authenticate with an MCP server using OAuth.
+
+```bash
+codex mcp login <NAME> [--scopes <SCOPE,SCOPE,...>]
+```
+
+<ParamField path="NAME" type="string" required>
+  Name of the MCP server to authenticate with.
+</ParamField>
+
+<ParamField path="--scopes" type="string">
+  Comma-separated list of OAuth scopes to request.
+</ParamField>
+
+<Note>
+OAuth login is only supported for streamable HTTP servers.
+</Note>
+
+### Examples
+
+```bash
+# Login to MCP server
+codex mcp login github-mcp
+
+# Login with specific scopes
+codex mcp login github-mcp --scopes repo,user
+
+# Output:
+# Starting OAuth flow...
+# Visit: https://github.com/login/oauth/authorize?client_id=...
+# Successfully logged in to MCP server 'github-mcp'.
+```
+
+## codex mcp logout
+
+Remove OAuth credentials for an MCP server.
+
+```bash
+codex mcp logout <NAME>
+```
+
+<ParamField path="NAME" type="string" required>
+  Name of the MCP server to deauthenticate.
+</ParamField>
+
+### Examples
+
+```bash
+# Logout from MCP server
+codex mcp logout github-mcp
+
+# Output:
+# Removed OAuth credentials for 'github-mcp'.
+
+# If no credentials stored
+codex mcp logout github-mcp
+
+# Output:
+# No OAuth credentials stored for 'github-mcp'.
+```
+
+## Configuration
+
+MCP servers are stored in `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.github-mcp]
+enabled = true
+transport = { type = "stdio", command = "node", args = ["/path/to/server.js"] }
+env = { GITHUB_TOKEN = "ghp_***" }
+
+[mcp_servers.remote-api]
+enabled = true
+transport = { type = "streamable_http", url = "https://api.example.com" }
+bearer_token_env_var = "API_TOKEN"
+```
+
+## MCP Server Types
+
+### stdio Servers
+
+Local servers that communicate via stdin/stdout:
+
+```bash
+codex mcp add my-tool -- python3 -m my_mcp_server
+```
+
+**Use cases:**
+- Local tools and utilities
+- File system access
+- Development and testing
+
+### Streamable HTTP Servers
+
+Remote servers over HTTP:
+
+```bash
+codex mcp add remote-service --url https://mcp.example.com
+```
+
+**Use cases:**
+- Cloud services
+- Shared team tools
+- OAuth-authenticated APIs
+
+## Troubleshooting
+
+### Server Won't Start
+
+Check server configuration:
+
+```bash
+codex mcp get <NAME>
+```
+
+Verify command is executable:
+
+```bash
+which <COMMAND>
+```
+
+### Environment Variables Not Set
+
+Ensure environment variables are available:
+
+```bash
+codex mcp add my-server \
+  --env TOKEN=$MY_TOKEN \
+  -- command
+```
+
+Or set in `config.toml`:
+
+```toml
+[mcp_servers.my-server]
+transport = { type = "stdio", command = "command" }
+env = { TOKEN = "value" }
+```
+
+### OAuth Issues
+
+For OAuth authentication problems:
+
+1. Verify server supports OAuth:
+   ```bash
+   codex mcp get <NAME> --json | jq .transport.type
+   ```
+
+2. Check credentials:
+   ```bash
+   codex mcp list --json | jq '.[] | select(.name=="<NAME>") | .auth_status'
+   ```
+
+3. Re-authenticate:
+   ```bash
+   codex mcp logout <NAME>
+   codex mcp login <NAME>
+   ```
+
+## Related Resources
+
+- [Model Context Protocol Specification](https://spec.modelcontextprotocol.io/)
+- [MCP Server Examples](https://github.com/modelcontextprotocol/servers)
+- [Building MCP Servers Guide](https://modelcontextprotocol.io/docs/building-servers)

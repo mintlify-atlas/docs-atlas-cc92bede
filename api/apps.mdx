@@ -1,0 +1,323 @@
+---
+title: 'Apps'
+description: 'Connector app discovery and invocation'
+---
+
+Apps (connectors) integrate external services with Codex. They expose tools and data sources that the agent can use during conversations.
+
+## List Apps
+
+Fetch available apps with optional pagination and thread context.
+
+### Method
+
+```
+app/list
+```
+
+### Parameters
+
+<ParamField path="cursor" type="string">
+  Opaque pagination cursor from previous response
+</ParamField>
+
+<ParamField path="limit" type="number">
+  Page size (server defaults if unset)
+</ParamField>
+
+<ParamField path="threadId" type="string">
+  Thread ID for feature gating (uses global config if omitted)
+</ParamField>
+
+<ParamField path="forceRefetch" type="boolean" default={false}>
+  Bypass app caches and fetch fresh data from sources
+</ParamField>
+
+### Response
+
+<ResponseField name="data" type="AppInfo[]">
+  Array of app metadata
+</ResponseField>
+
+<ResponseField name="nextCursor" type="string | null">
+  Cursor for next page (null if no more pages)
+</ResponseField>
+
+### Notifications
+
+<ResponseField name="app/list/updated" type="notification">
+  Emitted when app sources finish loading
+  
+  **Payload:** `{ data: AppInfo[] }`
+</ResponseField>
+
+## App Object
+
+<ResponseField name="id" type="string">
+  Unique app identifier (connector ID)
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Human-readable app name
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  App description
+</ResponseField>
+
+<ResponseField name="logoUrl" type="string">
+  Light theme logo URL
+</ResponseField>
+
+<ResponseField name="logoUrlDark" type="string | null">
+  Dark theme logo URL
+</ResponseField>
+
+<ResponseField name="distributionChannel" type="string | null">
+  Distribution channel identifier
+</ResponseField>
+
+<ResponseField name="branding" type="object | null">
+  App branding metadata
+</ResponseField>
+
+<ResponseField name="appMetadata" type="object | null">
+  Additional app metadata
+</ResponseField>
+
+<ResponseField name="labels" type="string[] | null">
+  App category labels
+</ResponseField>
+
+<ResponseField name="installUrl" type="string">
+  URL to install or configure the app
+</ResponseField>
+
+<ResponseField name="isAccessible" type="boolean">
+  Whether the user has access to this app
+</ResponseField>
+
+<ResponseField name="isEnabled" type="boolean">
+  Whether the app is enabled in config
+</ResponseField>
+
+## Example
+
+<CodeGroup>
+```json Request
+{
+  "method": "app/list",
+  "id": 50,
+  "params": {
+    "cursor": null,
+    "limit": 50,
+    "threadId": "thr_123",
+    "forceRefetch": false
+  }
+}
+```
+
+```json Response
+{
+  "id": 50,
+  "result": {
+    "data": [
+      {
+        "id": "github",
+        "name": "GitHub",
+        "description": "Access GitHub repositories, issues, and pull requests.",
+        "logoUrl": "https://example.com/github-logo.png",
+        "logoUrlDark": "https://example.com/github-logo-dark.png",
+        "distributionChannel": null,
+        "branding": {
+          "primaryColor": "#181717"
+        },
+        "appMetadata": null,
+        "labels": ["Development", "Version Control"],
+        "installUrl": "https://chatgpt.com/apps/github/github",
+        "isAccessible": true,
+        "isEnabled": true
+      },
+      {
+        "id": "slack",
+        "name": "Slack",
+        "description": "Send messages and read channels in Slack.",
+        "logoUrl": "https://example.com/slack-logo.png",
+        "logoUrlDark": null,
+        "distributionChannel": null,
+        "branding": {
+          "primaryColor": "#4A154B"
+        },
+        "appMetadata": null,
+        "labels": ["Communication", "Productivity"],
+        "installUrl": "https://chatgpt.com/apps/slack/slack",
+        "isAccessible": true,
+        "isEnabled": false
+      }
+    ],
+    "nextCursor": null
+  }
+}
+```
+
+```json Notification
+{
+  "method": "app/list/updated",
+  "params": {
+    "data": [
+      {
+        "id": "github",
+        "name": "GitHub",
+        "description": "Access GitHub repositories, issues, and pull requests.",
+        "logoUrl": "https://example.com/github-logo.png",
+        "logoUrlDark": "https://example.com/github-logo-dark.png",
+        "installUrl": "https://chatgpt.com/apps/github/github",
+        "isAccessible": true,
+        "isEnabled": true
+      }
+    ]
+  }
+}
+```
+</CodeGroup>
+
+## Invoking an App
+
+To invoke an app, include `$<app-slug>` in the text input and add a `mention` input item with the app path.
+
+The slug is derived from the app name: lowercase with non-alphanumeric characters replaced by `-`.
+
+**Examples:**
+- "GitHub" becomes `$github`
+- "Demo App" becomes `$demo-app`
+
+<CodeGroup>
+```json turn/start with app
+{
+  "method": "turn/start",
+  "id": 51,
+  "params": {
+    "threadId": "thr_123",
+    "input": [
+      {
+        "type": "text",
+        "text": "$github List open issues in the main repository."
+      },
+      {
+        "type": "mention",
+        "name": "GitHub",
+        "path": "app://github"
+      }
+    ]
+  }
+}
+```
+
+```json Response
+{
+  "id": 51,
+  "result": {
+    "turn": {
+      "id": "turn_600",
+      "status": "inProgress",
+      "items": [],
+      "error": null
+    }
+  }
+}
+```
+</CodeGroup>
+
+<Note>
+Always include the `mention` input item so the server uses the exact `app://<connector-id>` path rather than guessing by name.
+</Note>
+
+## App Sources
+
+Apps are loaded from two sources:
+
+<CardGroup cols={2}>
+  <Card title="Accessible Apps" icon="lock-open">
+    Apps the user has authorized and can access
+    
+    **Source:** ChatGPT account integrations
+  </Card>
+  
+  <Card title="Directory Apps" icon="book">
+    Public apps available in the app directory
+    
+    **Source:** ChatGPT app marketplace
+  </Card>
+</CardGroup>
+
+The `app/list` response merges both sources. Cache entries are only replaced when refetches succeed.
+
+## App Availability
+
+<ParamField path="isAccessible" type="boolean">
+  Indicates whether the user has authorized this app
+  
+  **false**: User needs to install/authorize the app via `installUrl`
+  
+  **true**: App is ready to use
+</ParamField>
+
+<ParamField path="isEnabled" type="boolean">
+  Indicates whether the app is enabled in Codex config
+  
+  Apps can be disabled via `config.toml` even if accessible.
+</ParamField>
+
+## App Configuration
+
+Apps can be configured in `config.toml`:
+
+```toml
+[apps.github]
+enabled = true
+destructive_enabled = true
+open_world_enabled = true
+
+[apps.github.tools]
+# Per-tool configuration
+[apps.github.tools.create_issue]
+enabled = true
+approval_mode = "auto"  # "auto", "prompt", or "approve"
+```
+
+### Configuration Options
+
+<ParamField path="enabled" type="boolean" default={true}>
+  Enable or disable the entire app
+</ParamField>
+
+<ParamField path="destructive_enabled" type="boolean">
+  Allow destructive operations (delete, modify)
+</ParamField>
+
+<ParamField path="open_world_enabled" type="boolean">
+  Allow operations that affect external systems
+</ParamField>
+
+<ParamField path="default_tools_approval_mode" type="string">
+  Default approval mode for all tools
+  
+  - `auto` - Execute without asking
+  - `prompt` - Ask for approval
+  - `approve` - Always approve
+</ParamField>
+
+<ParamField path="default_tools_enabled" type="boolean">
+  Enable all tools by default
+</ParamField>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Overview" icon="book-open" href="/api/overview">
+    Review the API architecture
+  </Card>
+  <Card title="Initialization" icon="handshake" href="/api/initialization">
+    Initialize your connection
+  </Card>
+</CardGroup>

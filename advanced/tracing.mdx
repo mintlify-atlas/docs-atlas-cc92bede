@@ -1,0 +1,466 @@
+---
+title: "Tracing & Verbose Logging"
+description: "Enable detailed logging to debug Codex behavior and troubleshoot issues"
+---
+
+## Overview
+
+Codex provides comprehensive tracing and logging capabilities to help you understand what's happening under the hood. This is especially useful for:
+
+- Debugging unexpected behavior
+- Troubleshooting integration issues
+- Understanding performance characteristics
+- Filing detailed bug reports
+
+<Warning>
+Verbose logging can generate large amounts of output and may include sensitive information. Use with caution in production environments.
+</Warning>
+
+## Quick Start
+
+Enable verbose logging with the `RUST_LOG` environment variable:
+
+```bash
+# Basic verbose logging
+RUST_LOG=debug codex
+
+# Trace-level logging (very verbose)
+RUST_LOG=trace codex
+
+# Info-level logging (default for Codex crates)
+RUST_LOG=info codex
+```
+
+## RUST_LOG Environment Variable
+
+The `RUST_LOG` variable controls logging verbosity using the standard Rust tracing infrastructure.
+
+### Log Levels
+
+<ParamField path="error" type="level">
+  Only critical errors that prevent operation
+</ParamField>
+
+<ParamField path="warn" type="level">
+  Warning messages about potential issues
+</ParamField>
+
+<ParamField path="info" type="level">
+  High-level informational messages (default for Codex crates)
+</ParamField>
+
+<ParamField path="debug" type="level">
+  Detailed debugging information
+</ParamField>
+
+<ParamField path="trace" type="level">
+  Extremely verbose tracing output
+</ParamField>
+
+### Syntax
+
+<Tabs>
+  <Tab title="Global Level">
+    Set the same level for all modules:
+    
+    ```bash
+    RUST_LOG=debug codex
+    ```
+  </Tab>
+  
+  <Tab title="Per-Module">
+    Set different levels for specific modules:
+    
+    ```bash
+    # Debug Codex core, info for everything else
+    RUST_LOG=info,codex_core=debug codex
+    
+    # Trace exec module, debug for core
+    RUST_LOG=codex_exec=trace,codex_core=debug codex
+    ```
+  </Tab>
+  
+  <Tab title="Pattern Matching">
+    Use patterns to target specific modules:
+    
+    ```bash
+    # Debug all codex-* crates
+    RUST_LOG=codex=debug codex
+    
+    # Trace specific function
+    RUST_LOG=codex_core::agent::process_event=trace codex
+    ```
+  </Tab>
+</Tabs>
+
+## Common Logging Scenarios
+
+### Debug API Requests
+
+```bash
+# See all API request/response details
+RUST_LOG=codex_core::api=debug codex
+```
+
+Output includes:
+- Request URLs and headers
+- Request body payloads
+- Response status codes
+- Response bodies
+- Timing information
+
+### Debug File Operations
+
+```bash
+# Trace file reading, writing, and patching
+RUST_LOG=codex_core::files=debug codex
+```
+
+Shows:
+- Files being read
+- Patches being applied
+- File system operations
+- Permission checks
+
+### Debug Command Execution
+
+```bash
+# See all shell commands and output
+RUST_LOG=codex_exec=debug codex exec "run tests"
+```
+
+Includes:
+- Commands being executed
+- Working directory
+- Environment variables
+- stdout/stderr output
+- Exit codes
+
+### Debug Sandboxing
+
+```bash
+# Trace sandbox setup and policy enforcement
+RUST_LOG=codex_sandbox=debug,codex_process_hardening=debug codex
+```
+
+Reveals:
+- Sandbox initialization
+- Policy rules being applied
+- Permission checks
+- Blocked operations
+
+## Exec Mode Logging
+
+In exec mode, logs are written to a file to avoid interfering with output:
+
+### Log File Location
+
+By default, logs are written to:
+
+```
+~/.codex/logs/codex-tui-<timestamp>.log
+```
+
+### Enable File Logging
+
+Logs are automatically written to file when you set `RUST_LOG`:
+
+```bash
+RUST_LOG=debug codex exec "analyze code"
+
+# Check the log file:
+tail -f ~/.codex/logs/codex-tui-*.log
+```
+
+### Log Rotation
+
+<Info>
+Log files are rotated automatically. Old logs are kept for debugging but can be safely deleted.
+</Info>
+
+## OpenTelemetry Integration
+
+Codex supports OpenTelemetry for distributed tracing:
+
+### Configuration
+
+```toml ~/.codex/config.toml
+[otel]
+enabled = true
+endpoint = "http://localhost:4317"  # OTLP gRPC endpoint
+
+# Optional: Sample rate (0.0 to 1.0)
+sampling_ratio = 1.0
+
+# Optional: Service name
+service_name = "codex-cli"
+```
+
+### Environment Variables
+
+Alternatively, use standard OTEL env vars:
+
+```bash
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317"
+export OTEL_SERVICE_NAME="codex-cli"
+export OTEL_TRACES_SAMPLER="always_on"
+
+codex
+```
+
+### Viewing Traces
+
+Use Jaeger or another OTEL-compatible backend:
+
+<Steps>
+  <Step title="Start Jaeger">
+    ```bash
+    docker run -d --name jaeger \
+      -p 4317:4317 \
+      -p 16686:16686 \
+      jaegertracing/all-in-one:latest
+    ```
+  </Step>
+  
+  <Step title="Configure Codex">
+    ```bash
+    export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317"
+    codex
+    ```
+  </Step>
+  
+  <Step title="View Traces">
+    Open http://localhost:16686 in your browser
+  </Step>
+</Steps>
+
+## Legacy TypeScript CLI
+
+For the legacy TypeScript implementation, use `DEBUG`:
+
+```bash
+# Full API request/response logging
+DEBUG=true codex
+```
+
+<Note>
+The TypeScript CLI is deprecated. Consider migrating to the Rust implementation for better performance and features.
+</Note>
+
+## Practical Examples
+
+<AccordionGroup>
+  <Accordion title="Debug slow performance">
+    ```bash
+    # Enable timing information
+    RUST_LOG=debug,codex_core::timing=trace codex
+    ```
+    
+    Look for:
+    - API request latency
+    - File I/O timing
+    - Long-running operations
+  </Accordion>
+  
+  <Accordion title="Debug authentication issues">
+    ```bash
+    # Trace auth flow
+    RUST_LOG=codex_core::auth=debug,codex_api::auth=debug codex
+    ```
+    
+    Shows:
+    - Token acquisition
+    - Token refresh attempts
+    - Authentication errors
+    - API key validation
+  </Accordion>
+  
+  <Accordion title="Debug MCP integration">
+    ```bash
+    # Trace MCP server communication
+    RUST_LOG=codex_core::mcp=debug codex
+    ```
+    
+    Reveals:
+    - MCP server initialization
+    - Tool calls and responses
+    - Connection errors
+    - Message parsing
+  </Accordion>
+  
+  <Accordion title="Debug config loading">
+    ```bash
+    # Trace config resolution
+    RUST_LOG=codex_core::config=debug codex
+    ```
+    
+    Displays:
+    - Config file locations checked
+    - Loaded configuration values
+    - Override application
+    - Validation errors
+  </Accordion>
+  
+  <Accordion title="Full diagnostic logging">
+    ```bash
+    # Everything at debug level
+    RUST_LOG=codex=debug codex 2>&1 | tee codex-debug.log
+    ```
+    
+    Captures all Codex modules at debug level and saves to file.
+  </Accordion>
+</AccordionGroup>
+
+## Performance Considerations
+
+<CardGroup cols={2}>
+  <Card title="Log Level Impact" icon="gauge">
+    Higher log levels (trace/debug) can slow down execution by 10-50%
+  </Card>
+  
+  <Card title="File I/O Overhead" icon="hard-drive">
+    Writing logs to disk adds latency, especially with trace level
+  </Card>
+  
+  <Card title="Memory Usage" icon="memory">
+    Verbose logging increases memory usage for buffering
+  </Card>
+  
+  <Card title="Network Tracing" icon="network-wired">
+    OTEL tracing adds ~5-10ms per span to network requests
+  </Card>
+</CardGroup>
+
+<Tip>
+For production use, stick with `info` or `warn` level logging. Use `debug` or `trace` only for active troubleshooting.
+</Tip>
+
+## Filtering Output
+
+### Grep for Specific Events
+
+```bash
+# Find all error messages
+RUST_LOG=debug codex 2>&1 | grep ERROR
+
+# Find API calls
+RUST_LOG=debug codex 2>&1 | grep "http request"
+
+# Find file operations
+RUST_LOG=debug codex 2>&1 | grep "file:"
+```
+
+### Focus on Specific Modules
+
+```bash
+# Only log Codex crates, silence dependencies
+RUST_LOG=codex=debug codex
+
+# Log multiple specific modules
+RUST_LOG=codex_core=debug,codex_exec=info codex
+```
+
+## Troubleshooting Logging
+
+<AccordionGroup>
+  <Accordion title="No logs appearing">
+    - Verify `RUST_LOG` is set: `echo $RUST_LOG`
+    - Check log file location: `ls -lh ~/.codex/logs/`
+    - Try higher verbosity: `RUST_LOG=trace`
+    - Ensure Codex has write permissions to log directory
+  </Accordion>
+  
+  <Accordion title="Too much output">
+    - Lower the log level: `RUST_LOG=info` instead of `debug`
+    - Filter to specific modules: `RUST_LOG=codex_core=debug`
+    - Use grep to filter: `RUST_LOG=debug codex 2>&1 | grep pattern`
+  </Accordion>
+  
+  <Accordion title="Logs missing expected info">
+    - Increase verbosity: `RUST_LOG=debug` or `RUST_LOG=trace`
+    - Check you're targeting the right module
+    - Some modules may not have debug logging implemented
+  </Accordion>
+  
+  <Accordion title="Sensitive data in logs">
+    - Codex attempts to redact secrets automatically
+    - Review logs before sharing publicly
+    - Use `RUST_LOG=info` in production to minimize exposure
+    - Set `otel.sampling_ratio = 0.1` to reduce trace data
+  </Accordion>
+</AccordionGroup>
+
+## Filing Bug Reports
+
+When reporting issues, include relevant logs:
+
+<Steps>
+  <Step title="Reproduce with Logging">
+    ```bash
+    RUST_LOG=debug codex <your command> 2>&1 | tee codex-issue.log
+    ```
+  </Step>
+  
+  <Step title="Redact Sensitive Data">
+    Review the log file and remove:
+    - API keys
+    - Tokens
+    - Personal information
+    - Proprietary code
+  </Step>
+  
+  <Step title="Attach to Issue">
+    Include the redacted log file when filing a GitHub issue:
+    
+    https://github.com/openai/codex/issues/new
+  </Step>
+</Steps>
+
+## Advanced Configuration
+
+### Custom Log Format
+
+Codex uses `tracing-subscriber` for logging. You can customize the format:
+
+```bash
+# JSON format logs
+RUST_LOG=debug RUST_LOG_FORMAT=json codex
+
+# Compact format
+RUST_LOG=debug RUST_LOG_FORMAT=compact codex
+```
+
+### Span Tracing
+
+View function call spans:
+
+```bash
+# Show span enter/exit events
+RUST_LOG=trace codex
+```
+
+Output includes:
+```
+→ entering span: process_event
+  ← exiting span: process_event (took 42ms)
+```
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Exec Mode" icon="terminal" href="/advanced/exec-mode">
+    Non-interactive execution for automation
+  </Card>
+  
+  <Card title="Configuration" icon="gear" href="/configuration/overview">
+    Configure Codex behavior
+  </Card>
+  
+  <Card title="Troubleshooting" icon="wrench" href="/guides/troubleshooting">
+    Common issues and solutions
+  </Card>
+  
+  <Card title="Contributing" icon="code-pull-request" href="/contributing/overview">
+    Help improve Codex
+  </Card>
+</CardGroup>

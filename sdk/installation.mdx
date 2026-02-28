@@ -1,0 +1,183 @@
+---
+title: "Installation"
+description: "Install the Codex TypeScript SDK and set up your development environment"
+---
+
+## Requirements
+
+The Codex TypeScript SDK requires:
+
+- **Node.js 18 or higher**
+- The `@openai/codex` CLI installed and available in your PATH
+
+## Install the SDK
+
+Install the SDK using your preferred package manager:
+
+<CodeGroup>
+
+```bash npm
+npm install @openai/codex-sdk
+```
+
+```bash pnpm
+pnpm add @openai/codex-sdk
+```
+
+```bash yarn
+yarn add @openai/codex-sdk
+```
+
+</CodeGroup>
+
+## Verify Installation
+
+Create a simple test script to verify the SDK is installed correctly:
+
+```typescript test.ts
+import { Codex } from "@openai/codex-sdk";
+
+const codex = new Codex();
+const thread = codex.startThread();
+
+console.log("SDK initialized successfully!");
+```
+
+Run the script:
+
+<CodeGroup>
+
+```bash Node.js
+node --loader tsx test.ts
+```
+
+```bash ts-node
+ts-node test.ts
+```
+
+</CodeGroup>
+
+## Environment Setup
+
+### API Configuration
+
+The SDK requires access to the Codex API. Configure your credentials:
+
+<Steps>
+  <Step title="Set API Key">
+    Set your OpenAI API key as an environment variable:
+    
+    ```bash
+    export OPENAI_API_KEY="your-api-key"
+    ```
+  </Step>
+  
+  <Step title="Configure Base URL (Optional)">
+    If you're using a custom API endpoint, set the base URL:
+    
+    ```bash
+    export OPENAI_BASE_URL="https://custom-endpoint.example.com/v1"
+    ```
+  </Step>
+  
+  <Step title="Pass Credentials Programmatically">
+    Alternatively, pass credentials directly when creating the client:
+    
+    ```typescript
+    const codex = new Codex({
+      apiKey: process.env.OPENAI_API_KEY,
+      baseUrl: "https://api.openai.com/v1",
+    });
+    ```
+  </Step>
+</Steps>
+
+### TypeScript Configuration
+
+Ensure your `tsconfig.json` is configured for ES modules:
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "target": "ES2020",
+    "lib": ["ES2020"],
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  }
+}
+```
+
+<Note>
+The SDK uses ES module syntax (`import`/`export`). Ensure your project is configured to support ES modules.
+</Note>
+
+## Package Information
+
+The SDK is published as `@openai/codex-sdk` with the following characteristics:
+
+<ResponseField name="Package Name" type="string">
+  `@openai/codex-sdk`
+</ResponseField>
+
+<ResponseField name="Type" type="string">
+  ES Module (`.js` files with `import`/`export`)
+</ResponseField>
+
+<ResponseField name="Main Export" type="string">
+  `./dist/index.js`
+</ResponseField>
+
+<ResponseField name="Type Definitions" type="string">
+  `./dist/index.d.ts`
+</ResponseField>
+
+<ResponseField name="License" type="string">
+  Apache-2.0
+</ResponseField>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Module Not Found Error" icon="circle-exclamation">
+    Ensure you've installed the package and that your `node_modules` is up to date:
+    
+    ```bash
+    rm -rf node_modules package-lock.json
+    npm install
+    ```
+  </Accordion>
+  
+  <Accordion title="Codex CLI Not Found" icon="terminal">
+    The SDK requires the `codex` CLI to be installed. Install it globally:
+    
+    ```bash
+    npm install -g @openai/codex
+    ```
+    
+    Or specify a custom path when creating the client:
+    
+    ```typescript
+    const codex = new Codex({
+      codexPathOverride: "/path/to/codex",
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="Node.js Version Error" icon="node-js">
+    Verify you're using Node.js 18 or higher:
+    
+    ```bash
+    node --version
+    ```
+    
+    Upgrade if needed using [nvm](https://github.com/nvm-sh/nvm) or download from [nodejs.org](https://nodejs.org).
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<Card title="Usage Guide" icon="rocket" href="/sdk/usage">
+  Learn how to use the SDK with code examples and detailed API documentation
+</Card>

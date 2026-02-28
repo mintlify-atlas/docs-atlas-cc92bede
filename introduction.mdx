@@ -1,0 +1,101 @@
+---
+title: Introduction to Codex CLI
+description: A local coding agent from OpenAI that runs directly in your terminal
+---
+
+# Introduction to Codex CLI
+
+Codex CLI is a coding agent from OpenAI that runs locally on your computer. It brings ChatGPT-level reasoning with the power to execute code, manipulate files, and iterate — all under version control.
+
+## What is Codex CLI?
+
+Codex CLI is built for developers who live in the terminal and want ChatGPT-level reasoning with the ability to execute code, manipulate files, and iterate. It's chat-driven development that understands and executes your repo.
+
+<CardGroup cols={2}>
+  <Card title="Get started" icon="rocket" href="/installation">
+    Install Codex CLI and get up and running in minutes
+  </Card>
+  <Card title="Authentication" icon="key" href="/authentication">
+    Sign in with ChatGPT or configure API key authentication
+  </Card>
+  <Card title="Quickstart guide" icon="bolt" href="/quickstart">
+    Run your first commands and see Codex in action
+  </Card>
+  <Card title="Core concepts" icon="book" href="/core-concepts">
+    Learn about approval modes, sandboxing, and more
+  </Card>
+</CardGroup>
+
+## Why use Codex CLI?
+
+Codex CLI is designed for developers who already work in the terminal and want powerful AI assistance without leaving their workflow.
+
+### Key features
+
+**Zero setup**
+
+Bring your OpenAI API key or sign in with ChatGPT and it just works. No complex configuration required.
+
+**Safe and secure**
+
+Codex runs in a sandbox with network disabled and directory restrictions. Full auto-approval is safe because commands are isolated from your system.
+
+**Full auto-approval**
+
+Let Codex work autonomously while staying secure. In full auto mode, commands run network-disabled and directory-sandboxed.
+
+**Multimodal**
+
+Pass in screenshots or diagrams to implement features. Codex understands visual context.
+
+**Open source**
+
+Fully open source so you can see how it works and contribute to development.
+
+## How it works
+
+Codex CLI operates in three approval modes, giving you control over how much autonomy the agent has:
+
+- **Suggest** (default): Codex reads files and suggests changes. You approve all file writes and shell commands.
+- **Auto Edit**: Codex reads and writes files automatically. You approve shell commands.
+- **Full Auto**: Codex reads, writes files, and executes commands. All operations run in a sandbox with network disabled.
+
+<Note>
+In full auto mode, every command runs network-disabled and confined to your working directory for defense-in-depth. Codex will warn you if you start in auto modes without Git tracking.
+</Note>
+
+## Example use cases
+
+<CodeGroup>
+```bash Refactor code
+codex "Refactor the Dashboard component to React Hooks"
+```
+
+```bash Generate migrations
+codex "Generate SQL migrations for adding a users table"
+```
+
+```bash Write tests
+codex "Write unit tests for utils/date.ts"
+```
+
+```bash Create an app
+codex --approval-mode full-auto "create a fancy todo-list app"
+```
+</CodeGroup>
+
+Codex rewrites code, runs tests, generates files, and iterates until the task is complete.
+
+## Next steps
+
+<Steps>
+  <Step title="Install Codex CLI">
+    Follow the [installation guide](/installation) to get Codex running on your system.
+  </Step>
+  <Step title="Authenticate">
+    Sign in with ChatGPT or configure your API key using the [authentication guide](/authentication).
+  </Step>
+  <Step title="Run your first command">
+    Complete the [quickstart](/quickstart) to see Codex in action.
+  </Step>
+</Steps>

@@ -1,0 +1,247 @@
+---
+title: codex review
+description: Run code reviews on commits, branches, or custom instructions
+---
+
+## Syntax
+
+```bash
+codex review [OPTIONS]
+```
+
+## Description
+
+The `review` command runs Codex in code review mode. You can review uncommitted changes, compare against a base branch, review a specific commit, or provide custom review instructions.
+
+<Note>
+The `review` command runs non-interactively like `codex exec`. Use `codex review --help` for all available options.
+</Note>
+
+## Usage
+
+### Review Uncommitted Changes
+
+```bash
+codex review --uncommitted
+```
+
+### Review Against Base Branch
+
+Compare current branch with `main`:
+
+```bash
+codex review --base main
+codex review --base develop
+```
+
+### Review Specific Commit
+
+```bash
+codex review --commit abc123
+codex review --commit HEAD~1
+```
+
+With commit title for context:
+
+```bash
+codex review --commit abc123 --commit-title "Add user authentication"
+```
+
+### Custom Review Instructions
+
+Provide specific review criteria:
+
+```bash
+codex review "focus on security vulnerabilities"
+codex review "check for performance issues"
+codex review "ensure code follows project style guide"
+```
+
+From stdin:
+
+```bash
+echo "review for accessibility issues" | codex review
+codex review < review-checklist.txt
+```
+
+## Options
+
+### Review Target
+
+<ParamField path="--uncommitted" type="boolean">
+  Review uncommitted changes in the working directory.
+</ParamField>
+
+<ParamField path="--base" type="string">
+  Review changes compared to a base branch (e.g., `main`, `develop`).
+</ParamField>
+
+<ParamField path="--commit" type="string">
+  Review a specific commit by SHA or reference (e.g., `abc123`, `HEAD~1`).
+</ParamField>
+
+<ParamField path="--commit-title" type="string">
+  Provide a commit title for context. Only valid with `--commit`.
+</ParamField>
+
+<ParamField path="PROMPT" type="string">
+  Custom review instructions. Use `-` to read from stdin.
+</ParamField>
+
+### Output
+
+<ParamField path="-o, --output-last-message" type="path">
+  Save the review report to a file.
+</ParamField>
+
+<ParamField path="--json" type="boolean">
+  Output review events as JSON Lines.
+</ParamField>
+
+### Model & Execution
+
+<ParamField path="-m, --model" type="string">
+  AI model to use for the review.
+</ParamField>
+
+<ParamField path="--color" type="string">
+  Control colored output: `auto`, `always`, `never`.
+</ParamField>
+
+## Examples
+
+### Pre-Commit Review
+
+```bash
+# Review before committing
+codex review --uncommitted
+
+# Save review to file
+codex review --uncommitted -o pre-commit-review.md
+```
+
+### Pull Request Review
+
+```bash
+# Review changes in current branch vs main
+codex review --base main
+
+# Review with JSON output for CI
+codex review --base main --json > pr-review.jsonl
+```
+
+### Commit Review
+
+```bash
+# Review the last commit
+codex review --commit HEAD
+
+# Review a specific commit with context
+codex review --commit abc123 --commit-title "Fix authentication bug"
+
+# Review a range of commits
+for commit in $(git log --format=%H -n 5); do
+  codex review --commit $commit -o "review-$commit.md"
+done
+```
+
+### Focused Reviews
+
+```bash
+# Security review
+codex review --uncommitted "focus on security vulnerabilities and input validation"
+
+# Performance review
+codex review --base main "identify performance bottlenecks and optimization opportunities"
+
+# Code quality review
+codex review <<EOF
+Review for:
+- Code duplication
+- Proper error handling
+- Test coverage
+- Documentation completeness
+EOF
+```
+
+### CI/CD Integration
+
+```yaml
+# GitHub Actions
+name: Code Review
+on: [pull_request]
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Full history for base comparison
+      
+      - name: Review Changes
+        run: |
+          codex review --base ${{ github.base_ref }} --json > review.jsonl
+          codex review --base ${{ github.base_ref }} -o review-report.md
+      
+      - name: Upload Review
+        uses: actions/upload-artifact@v3
+        with:
+          name: code-review
+          path: review-report.md
+```
+
+### Pre-Commit Hook
+
+```bash
+#!/bin/bash
+# .git/hooks/pre-commit
+
+echo "Running Codex review on uncommitted changes..."
+
+codex review --uncommitted -o /tmp/codex-review.txt
+
+if [ $? -ne 0 ]; then
+  echo "Review failed. See /tmp/codex-review.txt for details."
+  exit 1
+fi
+
+echo "Review complete. See /tmp/codex-review.txt"
+```
+
+### Different Models
+
+```bash
+# Use GPT-4.1 for thorough reviews
+codex review --base main -m gpt-4.1
+
+# Quick review with o4-mini
+codex review --uncommitted -m o4-mini
+```
+
+## Review Output
+
+By default, Codex outputs the review to stderr. Use `-o` to save to a file:
+
+```bash
+codex review --uncommitted -o review.md
+```
+
+With `--json`, events are emitted as JSON Lines:
+
+```bash
+codex review --base main --json | jq -r 'select(.msg.type=="text") | .msg.content'
+```
+
+## Exit Codes
+
+- `0` - Review completed successfully
+- `1` - Error occurred during review
+
+<Warning>
+The exit code indicates whether the review *ran* successfully, not whether the code *passed* review. Check the review content for findings.
+</Warning>
+
+## Related Commands
+
+- [`codex exec`](/cli/exec) - Non-interactive execution
+- [`codex`](/cli/codex) - Interactive mode

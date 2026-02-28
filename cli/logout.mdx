@@ -1,0 +1,137 @@
+---
+title: codex logout
+description: Remove stored authentication credentials
+---
+
+## Syntax
+
+```bash
+codex logout
+```
+
+## Description
+
+The `logout` command removes your stored authentication credentials from Codex. After logging out, you'll need to run `codex login` again to authenticate.
+
+## Usage
+
+```bash
+codex logout
+```
+
+This removes:
+- ChatGPT OAuth tokens
+- API keys
+- Any other stored credentials
+
+## Examples
+
+### Standard Logout
+
+```bash
+# Remove credentials
+codex logout
+
+# Output:
+# Logged out successfully
+```
+
+### Verify Logout
+
+```bash
+# Log out
+codex logout
+
+# Check status
+codex login status
+
+# Output:
+# Authenticated: No
+```
+
+### Switch Accounts
+
+```bash
+# Log out of current account
+codex logout
+
+# Log in with different account
+codex login
+```
+
+### CI/CD Cleanup
+
+```yaml
+# GitHub Actions - cleanup after job
+- name: Cleanup Credentials
+  if: always()
+  run: codex logout
+```
+
+## What Gets Removed
+
+The `logout` command removes:
+
+1. **OAuth Tokens**: ChatGPT authentication tokens
+2. **API Keys**: Stored OpenAI API keys
+3. **Session Data**: Any active session information
+
+## Credential Storage
+
+Credentials are stored in your system's secure storage:
+
+- **macOS**: Keychain Access
+- **Linux**: Secret Service API (gnome-keyring, KWallet)
+- **Windows**: Windows Credential Manager
+
+The `logout` command removes entries from these secure stores.
+
+## After Logout
+
+To use Codex again, you must re-authenticate:
+
+```bash
+# Log out
+codex logout
+
+# Log back in
+codex login
+
+# Or use API key
+echo "$OPENAI_API_KEY" | codex login --with-api-key
+```
+
+## Troubleshooting
+
+### Credentials Still Present
+
+If credentials persist after logout:
+
+1. Check login status:
+   ```bash
+   codex login status
+   ```
+
+2. Manually remove from keychain (macOS):
+   ```bash
+   security delete-generic-password -s "codex-cli" -a "oauth"
+   ```
+
+3. Or remove config file:
+   ```bash
+   rm ~/.codex/auth.json
+   ```
+
+### Permission Errors
+
+If you see permission errors:
+
+```bash
+# macOS - may need to allow terminal access to keychain
+# Go to: System Preferences > Privacy & Security > Privacy > Keychain
+```
+
+## Related Commands
+
+- [`codex login`](/cli/login) - Authenticate with Codex
+- [`codex login status`](/cli/login#check-login-status) - View authentication status

@@ -1,0 +1,326 @@
+---
+title: Testing
+description: Learn how to run tests and validate your changes to Codex CLI
+---
+
+This guide covers the testing workflows for Codex CLI, including unit tests, integration tests, and snapshot tests.
+
+## Rust Testing
+
+The Rust implementation uses standard `cargo test` along with specialized tools.
+
+### Running Tests
+
+<Steps>
+  <Step title="Run Tests for a Specific Crate">
+    Always start by testing the specific crate you modified:
+    
+    ```bash
+    cargo test -p codex-tui
+    cargo test -p codex-core
+    cargo test -p codex-app-server-protocol
+    ```
+    
+    <Tip>
+      This is the fastest way to get feedback on your changes.
+    </Tip>
+  </Step>
+
+  <Step title="Run Full Test Suite (If Needed)">
+    If you changed `common`, `core`, or `protocol` crates, run the complete test suite:
+    
+    ```bash
+    # Standard cargo test
+    cargo test
+    
+    # Or with nextest (faster)
+    just test
+    ```
+    
+    <Warning>
+      Avoid `--all-features` for routine local runs. It expands the build matrix and significantly increases build time and disk usage. Only use it when you specifically need full feature coverage.
+    </Warning>
+  </Step>
+
+  <Step title="Check Results">
+    Review test output for any failures or warnings.
+  </Step>
+</Steps>
+
+### Snapshot Tests
+
+Codex uses snapshot tests via `insta` to validate rendered output, especially in `codex-tui`.
+
+<Info>
+  **Requirement:** Any change that affects user-visible UI must include corresponding `insta` snapshot coverage.
+</Info>
+
+<Steps>
+  <Step title="Run Tests to Generate Snapshots">
+    ```bash
+    cargo test -p codex-tui
+    ```
+  </Step>
+
+  <Step title="Check Pending Snapshots">
+    ```bash
+    cargo insta pending-snapshots -p codex-tui
+    ```
+  </Step>
+
+  <Step title="Review Changes">
+    Review the generated `*.snap.new` files directly, or preview a specific file:
+    
+    ```bash
+    cargo insta show -p codex-tui path/to/file.snap.new
+    ```
+  </Step>
+
+  <Step title="Accept Snapshots (If Correct)">
+    Only accept if you've verified the changes are correct:
+    
+    ```bash
+    cargo insta accept -p codex-tui
+    ```
+  </Step>
+</Steps>
+
+<Accordion title="Installing cargo-insta">
+  If you don't have the tool installed:
+  
+  ```bash
+  cargo install cargo-insta
+  ```
+</Accordion>
+
+### Test Assertions Best Practices
+
+<CodeGroup>
+  ```rust Use pretty_assertions
+  use pretty_assertions::assert_eq;
+  
+  #[test]
+  fn test_example() {
+      let result = calculate_something();
+      let expected = ExpectedStruct { /* ... */ };
+      
+      // Prefer deep equals on entire objects
+      assert_eq!(result, expected);
+  }
+  ```
+
+  ```rust Avoid field-by-field assertions
+  // Don't do this:
+  assert_eq!(result.field1, expected.field1);
+  assert_eq!(result.field2, expected.field2);
+  
+  // Do this instead:
+  assert_eq!(result, expected);
+  ```
+</CodeGroup>
+
+### Integration Tests
+
+When writing end-to-end Codex tests, use the utilities in `core_test_support::responses`.
+
+<CodeGroup>
+  ```rust Typical test pattern
+  use core_test_support::responses;
+  
+  #[tokio::test]
+  async fn test_function_call() -> Result<()> {
+      let mock = responses::mount_sse_once(&server, responses::sse(vec![
+          responses::ev_response_created("resp-1"),
+          responses::ev_function_call(call_id, "shell", &serde_json::to_string(&args)?),
+          responses::ev_completed("resp-1"),
+      ])).await;
+      
+      codex.submit(Op::UserTurn { /* ... */ }).await?;
+      
+      // Assert request body
+      let request = mock.single_request();
+      assert_eq!(request.function_call_output(call_id)?, expected_output);
+      
+      Ok(())
+  }
+  ```
+
+  ```rust Response mock helpers
+  // All mount_sse* helpers return a ResponseMock
+  let mock = responses::mount_sse_once(&server, payload).await;
+  
+  // Single POST assertion
+  let request = mock.single_request();
+  
+  // Multiple POST assertions
+  let requests = mock.requests();
+  
+  // Inspect structured payloads
+  request.body_json()?
+  request.input()?
+  request.function_call_output(call_id)?
+  request.custom_tool_call_output(call_id)?
+  request.call_output(call_id)?
+  request.header("X-Custom")?
+  request.path()
+  request.query_param("key")
+  ```
+</CodeGroup>
+
+<Warning>
+  **Best practices for integration tests:**
+  
+  - Prefer `wait_for_event` over `wait_for_event_with_timeout`
+  - Prefer `mount_sse_once` over `mount_sse_once_match` or `mount_sse_sequence`
+  - Avoid mutating process environment in tests
+</Warning>
+
+### Spawning Workspace Binaries in Tests
+
+<Tip>
+  Use `codex_utils_cargo_bin::cargo_bin("...")` instead of `assert_cmd::Command::cargo_bin(...)` when tests need to spawn first-party binaries.
+</Tip>
+
+```rust
+use codex_utils_cargo_bin::cargo_bin;
+
+#[test]
+fn test_cli_binary() {
+    let codex_bin = cargo_bin("codex");
+    // Use codex_bin path...
+}
+```
+
+This ensures paths resolve correctly under both Cargo and Bazel runfiles.
+
+## TypeScript Testing
+
+<Warning>
+  The TypeScript implementation is **legacy**. This section is for reference only.
+</Warning>
+
+The TypeScript CLI uses **Vitest** for unit tests.
+
+### Running TypeScript Tests
+
+<CodeGroup>
+  ```bash Watch mode (recommended)
+  pnpm test:watch
+  ```
+
+  ```bash Single run
+  pnpm test
+  ```
+
+  ```bash With type checking
+  pnpm test && pnpm typecheck
+  ```
+
+  ```bash Full validation suite
+  pnpm test && pnpm run lint && pnpm run typecheck
+  ```
+</CodeGroup>
+
+### Git Hooks
+
+The TypeScript project uses [Husky](https://typicode.github.io/husky/) to enforce code quality:
+
+- **Pre-commit hook:** Runs lint-staged to format and lint files
+- **Pre-push hook:** Runs tests and type checking
+
+<Info>
+  These hooks help maintain code quality and prevent pushing code with failing tests.
+</Info>
+
+## App-Server Protocol Testing
+
+After changing API shapes in `app-server-protocol`:
+
+<Steps>
+  <Step title="Regenerate Schema Fixtures">
+    ```bash
+    just write-app-server-schema
+    
+    # If experimental API fixtures are affected:
+    just write-app-server-schema --experimental
+    ```
+  </Step>
+
+  <Step title="Validate Changes">
+    ```bash
+    cargo test -p codex-app-server-protocol
+    ```
+  </Step>
+</Steps>
+
+## Sandbox Testing
+
+Test commands under the Codex sandbox using dedicated subcommands:
+
+<CodeGroup>
+  ```bash macOS Seatbelt
+  codex sandbox macos [--full-auto] [--log-denials] [COMMAND]...
+  
+  # Legacy alias
+  codex debug seatbelt [--full-auto] [--log-denials] [COMMAND]...
+  ```
+
+  ```bash Linux Landlock
+  codex sandbox linux [--full-auto] [COMMAND]...
+  
+  # Legacy alias
+  codex debug landlock [--full-auto] [COMMAND]...
+  ```
+
+  ```bash Windows
+  codex sandbox windows [--full-auto] [COMMAND]...
+  ```
+</CodeGroup>
+
+<Tip>
+  Use `--log-denials` on macOS to see what file accesses are being blocked by Seatbelt.
+</Tip>
+
+## Before Submitting a PR
+
+Before marking your PR as ready for review, run all checks locally:
+
+<Tabs>
+  <Tab title="Rust">
+    ```bash
+    # Format code
+    just fmt
+    
+    # Fix linter issues
+    just fix -p <crate-you-touched>
+    
+    # Run tests
+    cargo test -p <crate-you-touched>
+    
+    # If you changed core crates:
+    cargo test
+    ```
+  </Tab>
+  
+  <Tab title="TypeScript">
+    ```bash
+    # Run full validation suite
+    pnpm test && pnpm run lint && pnpm run typecheck
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+  CI failures that could have been caught locally slow down the review process. Always run checks before pushing.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Guidelines" icon="book" href="/contributing/guidelines">
+    Review contribution guidelines
+  </Card>
+  <Card title="Building" icon="hammer" href="/contributing/building">
+    Learn how to build the project
+  </Card>
+</CardGroup>

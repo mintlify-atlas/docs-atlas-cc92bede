@@ -1,0 +1,235 @@
+---
+title: 'Global Options'
+description: 'Global command-line options available across all Codex CLI commands'
+---
+
+## Overview
+
+Global options can be used with any Codex CLI command. They are processed before subcommands and affect the behavior of the entire CLI session.
+
+## Configuration Override
+
+<ParamField path="-c, --config" type="string" repeatable>
+  Override configuration values using key=value pairs. Can be specified multiple times.
+  
+  **Examples:**
+  ```bash
+  codex -c model=gpt-4.1 -c sandbox_mode=workspace-write
+  codex exec -c features.js_repl=true "test the app"
+  ```
+  
+  Common configuration keys:
+  - `model` - Override the AI model
+  - `sandbox_mode` - Control sandbox restrictions
+  - `approval_policy` - Set approval mode
+  - `features.<name>` - Toggle feature flags
+</ParamField>
+
+## Profile Selection
+
+<ParamField path="-p, --profile" type="string">
+  Select a configuration profile from config.toml
+  
+  **Example:**
+  ```bash
+  codex --profile production
+  codex exec --profile experimental "refactor utils"
+  ```
+  
+  Profiles allow you to maintain different sets of configuration for different use cases (development, production, experimental, etc.).
+</ParamField>
+
+## Working Directory
+
+<ParamField path="-C, --cwd" type="path">
+  Change the working directory before executing the command
+  
+  **Example:**
+  ```bash
+  codex -C /path/to/project "fix tests"
+  codex --cwd ~/projects/app exec "run linter"
+  ```
+</ParamField>
+
+## Model Selection
+
+<ParamField path="-m, --model" type="string">
+  Specify the AI model to use for the session
+  
+  **Example:**
+  ```bash
+  codex -m gpt-4.1
+  codex --model o4-mini "explain this code"
+  ```
+  
+  Common models:
+  - `o4-mini` - Fast, efficient reasoning model (default)
+  - `gpt-4.1` - Advanced reasoning and coding
+  - `o3` - Advanced reasoning model with extended thinking
+</ParamField>
+
+## Open Source Models
+
+<ParamField path="--oss" type="boolean">
+  Use open-source models instead of proprietary models
+  
+  **Example:**
+  ```bash
+  codex --oss "help me debug"
+  ```
+</ParamField>
+
+## Sandbox Control
+
+<ParamField path="--sandbox" type="enum">
+  Control the sandbox mode for command execution
+  
+  **Options:**
+  - `workspace-write` - Allow writes within the workspace directory
+  - `full-access` - Allow full filesystem access (use with caution)
+  
+  **Example:**
+  ```bash
+  codex --sandbox workspace-write
+  codex exec --sandbox full-access "system diagnostic"
+  ```
+</ParamField>
+
+## Approval Policy
+
+<ParamField path="--ask-for-approval" type="enum">
+  Set when the agent should ask for approval before executing commands
+  
+  **Options:**
+  - `on-request` - Ask for approval when the agent requests it
+  - `always` - Always ask before executing any command
+  - `never` - Never ask (use with caution)
+  
+  **Example:**
+  ```bash
+  codex --ask-for-approval always
+  codex exec --ask-for-approval never "run tests"
+  ```
+</ParamField>
+
+<ParamField path="--full-auto" type="boolean">
+  Enable fully automatic mode (equivalent to `--ask-for-approval never`)
+  
+  **Example:**
+  ```bash
+  codex --full-auto "create a todo app"
+  ```
+  
+  <Warning>
+    In full-auto mode, commands execute automatically. Use in sandboxed environments or Git-tracked directories.
+  </Warning>
+</ParamField>
+
+<ParamField path="--dangerously-bypass-approvals-and-sandbox" type="boolean">
+  Bypass both approval prompts and sandbox restrictions
+  
+  <Warning>
+    **DANGEROUS:** This option removes all safety guardrails. Only use in completely isolated test environments.
+  </Warning>
+</ParamField>
+
+## Web Search
+
+<ParamField path="--search" type="boolean">
+  Enable web search capabilities for the agent
+  
+  **Example:**
+  ```bash
+  codex --search "find the latest React best practices"
+  ```
+</ParamField>
+
+## Image Input
+
+<ParamField path="-i, --images" type="string">
+  Provide image files as input (comma-separated paths)
+  
+  **Example:**
+  ```bash
+  codex -i screenshot.png "implement this UI"
+  codex --images "design.png,mockup.png" "create components"
+  ```
+</ParamField>
+
+## Directory Context
+
+<ParamField path="--add-dir" type="string" repeatable>
+  Add directories to the agent's context (can be specified multiple times)
+  
+  **Example:**
+  ```bash
+  codex --add-dir src --add-dir tests
+  codex --add-dir lib "explain the architecture"
+  ```
+</ParamField>
+
+## Version Information
+
+<ParamField path="--version" type="boolean">
+  Display the Codex CLI version
+  
+  **Example:**
+  ```bash
+  codex --version
+  ```
+</ParamField>
+
+<ParamField path="--help" type="boolean">
+  Display help information
+  
+  **Example:**
+  ```bash
+  codex --help
+  codex exec --help
+  ```
+</ParamField>
+
+## Combining Options
+
+Global options can be combined to create powerful workflows:
+
+<CodeGroup>
+```bash High-Performance Dev Mode
+codex -m gpt-4.1 --profile dev -C ~/project --search
+```
+
+```bash Safe Experimentation
+codex --sandbox workspace-write --ask-for-approval always
+```
+
+```bash Full Auto with Features
+codex --full-auto --enable js_repl -c model=o4-mini
+```
+
+```bash Multi-Directory Context
+codex --add-dir src --add-dir tests --add-dir docs \
+  "document the API"
+```
+</CodeGroup>
+
+## Order of Precedence
+
+When the same option is specified in multiple places, Codex uses this priority:
+
+1. Command-line flags (highest priority)
+2. `-c` config overrides
+3. Environment variables
+4. Profile settings (from `--profile`)
+5. `config.toml` base configuration
+6. Built-in defaults (lowest priority)
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Feature Flags" icon="flag" href="/cli/feature-flags">
+    Enable experimental features
+  </Card>
+  <Card title="Configuration" icon="gear" href="/configuration/overview">
+    Learn about config.toml
+  </Card>
+</CardGroup>

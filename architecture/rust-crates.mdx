@@ -1,0 +1,343 @@
+---
+title: Rust Workspace Structure
+description: Overview of the Cargo workspace and crate organization in codex-rs
+---
+
+The `codex-rs` directory is the root of a Cargo workspace containing the complete Rust implementation of Codex CLI.
+
+## Workspace Members
+
+The workspace includes 60+ crates organized by functionality. All crate names are prefixed with `codex-`.
+
+<Info>
+**Naming Convention**: The `core` folder contains the `codex-core` crate, `tui` contains `codex-tui`, etc.
+</Info>
+
+## Core Crates
+
+These crates form the foundation of Codex CLI:
+
+### codex-core
+
+<Card title="Business Logic Library" icon="brain">
+  The core business logic for Codex, designed as a reusable library crate.
+  
+  **Responsibilities:**
+  - Conversation and turn management
+  - Model interaction and streaming responses
+  - Tool execution and sandboxing coordination
+  - Configuration loading and validation
+  - Session state management
+  
+  **Platform Requirements:**
+  - **macOS**: Expects `/usr/bin/sandbox-exec` (Seatbelt)
+  - **Linux**: Expects binary to handle `codex-linux-sandbox` arg0
+  - **All**: Supports `--codex-run-as-apply-patch` for virtual apply_patch CLI
+</Card>
+
+### codex-cli
+
+<Card title="Multitool CLI" icon="wrench">
+  The main CLI multitool that provides all Codex functionality via subcommands.
+  
+  **Subcommands:**
+  - Default (no subcommand) — Launches TUI
+  - `exec` — Headless execution
+  - `app-server` — JSON-RPC server
+  - `sandbox` — Sandbox testing
+  - `mcp` — MCP server management
+  - `config` — Configuration utilities
+</Card>
+
+### codex-tui
+
+<Card title="Terminal User Interface" icon="terminal" href="/architecture/tui">
+  Fullscreen terminal interface built with Ratatui.
+  
+  **Features:**
+  - Real-time conversation rendering
+  - Interactive approvals and prompts
+  - Diff visualization
+  - Keyboard-driven navigation
+  - See [TUI Architecture](/architecture/tui) for details
+</Card>
+
+### codex-exec
+
+<Card title="Headless CLI" icon="play">
+  Non-interactive CLI for automation and programmatic use.
+  
+  **Usage:**
+  ```bash
+  codex exec "your prompt here"
+  codex exec --ephemeral "run without persisting"
+  ```
+  
+  **Features:**
+  - Non-interactive execution
+  - Output to stdout
+  - Ephemeral mode (no session persistence)
+  - RUST_LOG support for debugging
+</Card>
+
+### codex-app-server
+
+<Card title="JSON-RPC Server" icon="server">
+  JSON-RPC 2.0 server for IDE integrations (VS Code, etc.).
+  
+  **Protocol:**
+  - Bidirectional JSON-RPC over stdio or WebSocket
+  - Thread/Turn/Item primitives
+  - Streaming notifications
+  - Approval flows
+  
+  **Clients:**
+  - Official VS Code extension
+  - Custom integrations via protocol
+</Card>
+
+## Sandbox & Security Crates
+
+Platform-specific sandboxing implementations:
+
+<AccordionGroup>
+  <Accordion title="codex-linux-sandbox">
+    Linux sandboxing using Landlock and Bubblewrap.
+    
+    **Components:**
+    - Standalone `codex-linux-sandbox` executable
+    - Library exposing `run_main()` for arg0 routing
+    - Vendored bubblewrap for filesystem isolation
+    
+    **Current Behavior:**
+    - Legacy: Landlock + mount protections
+    - Modern: Bubblewrap pipeline (feature gated)
+    - Read-only by default via `--ro-bind / /`
+    - Writable roots with `--bind`
+    - Protected paths (`.git`, `.codex`) re-applied as read-only
+    - PID namespace isolation via `--unshare-pid`
+    - Network isolation via `--unshare-net`
+    - Managed proxy mode with internal routing bridge
+  </Accordion>
+  
+  <Accordion title="codex-process-hardening">
+    Cross-platform process hardening applied pre-main.
+    
+    **Hardening Steps:**
+    - Disable core dumps
+    - Disable ptrace attach (Linux/macOS)
+    - Remove dangerous environment variables
+      - `LD_PRELOAD`
+      - `DYLD_*` variables
+    
+    **Usage:**
+    ```rust
+    #[ctor::ctor]
+    fn harden() {
+        codex_process_hardening::pre_main_hardening();
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="codex-execpolicy & codex-execpolicy-legacy">
+    Execution policy management for trusted commands.
+    
+    **Purpose:**
+    - Allow-lists for approved commands
+    - Session-scoped approvals
+    - Policy persistence
+    - Trust decision tracking
+  </Accordion>
+</AccordionGroup>
+
+## Protocol & Communication Crates
+
+<CardGroup cols={2}>
+  <Card title="codex-protocol" icon="comments">
+    Core protocol types and message definitions.
+    
+    **Contents:**
+    - Agent instructions and prompts
+    - System message templates
+    - Collaboration modes
+    - Personality presets
+  </Card>
+  
+  <Card title="codex-app-server-protocol" icon="file-code">
+    App Server JSON-RPC schema and types.
+    
+    **Features:**
+    - TypeScript generation
+    - JSON Schema export
+    - Experimental API gating
+    - Wire format validation
+  </Card>
+  
+  <Card title="codex-rmcp-client" icon="plug">
+    Remote MCP (Model Context Protocol) client.
+    
+    **Purpose:**
+    - Connect to MCP servers
+    - Tool discovery and invocation
+    - Resource access
+    - OAuth flows
+  </Card>
+  
+  <Card title="codex-mcp-server" icon="network-wired">
+    Codex as an MCP server.
+    
+    **Usage:**
+    ```bash
+    codex mcp-server
+    npx @modelcontextprotocol/inspector codex mcp-server
+    ```
+  </Card>
+</CardGroup>
+
+## Integration Crates
+
+<Accordion title="Model Provider Integrations">
+  - **codex-lmstudio** — LM Studio integration
+  - **codex-ollama** — Ollama integration
+  - **codex-backend-client** — OpenAI backend client
+  - **codex-responses-api-proxy** — Responses API proxy server
+</Accordion>
+
+<Accordion title="Configuration & State">
+  - **codex-config** — Configuration loading and validation
+  - **codex-state** — Session state management
+  - **codex-cloud-requirements** — Requirements.toml parsing
+  - **codex-cloud-tasks** — Task execution framework
+</Accordion>
+
+<Accordion title="Developer Experience">
+  - **codex-login** — Authentication flows
+  - **codex-feedback** — Feedback submission
+  - **codex-hooks** — Git hook management
+  - **codex-skills** — Skill discovery and loading
+  - **codex-secrets** — Secret management
+</Accordion>
+
+## Utility Crates
+
+The `utils/` directory contains shared utilities:
+
+<CodeGroup>
+```text Path Utils
+utils/absolute-path   — Absolute path handling
+utils/home-dir        — Home directory detection
+utils/cache           — Caching utilities
+```
+
+```text Process Utils
+utils/pty             — PTY management
+utils/cargo-bin       — Cargo binary location
+utils/sleep-inhibitor — Prevent system sleep
+```
+
+```text Developer Utils
+utils/git             — Git operations
+utils/fuzzy-match     — Fuzzy string matching
+utils/stream-parser   — Stream parsing
+utils/approval-presets — Approval presets
+```
+</CodeGroup>
+
+## Specialized Crates
+
+<AccordionGroup>
+  <Accordion title="File Operations">
+    - **codex-file-search** — File search and indexing
+    - **codex-apply-patch** — Patch application logic
+  </Accordion>
+  
+  <Accordion title="Terminal & UI">
+    - **codex-ansi-escape** — ANSI escape sequence handling
+    - **codex-shell-command** — Shell command parsing
+    - **codex-shell-escalation** — Privilege escalation
+    - **codex-stdio-to-uds** — stdio to Unix domain socket bridge
+  </Accordion>
+  
+  <Accordion title="Observability">
+    - **codex-otel** — OpenTelemetry integration
+    - **codex-network-proxy** — Network proxy support
+  </Accordion>
+  
+  <Accordion title="Testing">
+    - **codex-test-macros** — Test utilities
+    - **app-server-test-client** — App server test client
+    - **debug-client** — Debug client for testing
+  </Accordion>
+</AccordionGroup>
+
+## Workspace Configuration
+
+The workspace uses shared configuration in `codex-rs/Cargo.toml`:
+
+### Edition & Versioning
+
+```toml
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+license = "Apache-2.0"
+```
+
+### Dependency Management
+
+- All workspace crates share dependency versions
+- Internal crates use path dependencies
+- External dependencies locked in workspace
+- Custom patches for ratatui, crossterm, tungstenite
+
+### Build Configuration
+
+<CodeGroup>
+```toml Release Profile
+[profile.release]
+lto = "fat"              # Link-time optimization
+split-debuginfo = "off"
+strip = "symbols"       # Minimal binary size
+codegen-units = 1       # Maximum optimization
+```
+
+```toml CI Test Profile
+[profile.ci-test]
+inherits = "test"
+debug = 1               # Reduced debug symbols
+opt-level = 0
+```
+</CodeGroup>
+
+### Linting
+
+Workspace enforces strict Clippy lints:
+
+- `expect_used = "deny"`
+- `unwrap_used = "deny"`
+- `manual_*` patterns denied
+- Format args must be inlined
+- Redundant operations denied
+
+## Bazel Integration
+
+The workspace supports Bazel builds alongside Cargo:
+
+- `runfiles` integration for test resources
+- `cargo-bin` utility for binary location
+- Platform-specific build configurations
+
+<Warning>
+After changing dependencies, run `just bazel-lock-update` from repo root to refresh `MODULE.bazel.lock`.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="TUI Architecture" icon="terminal" href="/architecture/tui">
+    Deep dive into the Ratatui-based interface
+  </Card>
+  <Card title="Sandboxing" icon="lock" href="/architecture/sandboxing">
+    Platform-specific security implementations
+  </Card>
+</CardGroup>

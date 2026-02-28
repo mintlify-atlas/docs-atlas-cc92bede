@@ -1,0 +1,637 @@
+---
+title: 'Items'
+description: 'Thread item types and streaming notifications'
+---
+
+**ThreadItem** is the core data structure representing user inputs and agent outputs within a turn. Items are persisted and used as context for future conversations.
+
+## Item Lifecycle
+
+All items follow a consistent lifecycle:
+
+<Steps>
+  <Step title="item/started">
+    Emits the full `item` when a new unit of work begins
+    
+    ```json
+    {
+      "method": "item/started",
+      "params": {
+        "threadId": "thr_123",
+        "turnId": "turn_456",
+        "item": {
+          "type": "agentMessage",
+          "id": "item_789",
+          "text": ""
+        }
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Item-specific deltas (optional)">
+    Zero or more streaming updates
+    
+    - `item/agentMessage/delta` - Agent text streaming
+    - `item/commandExecution/outputDelta` - Command output streaming
+    - `item/reasoning/summaryTextDelta` - Reasoning summary streaming
+  </Step>
+  
+  <Step title="item/completed">
+    Sends the final `item` once work finishes
+    
+    ```json
+    {
+      "method": "item/completed",
+      "params": {
+        "threadId": "thr_123",
+        "turnId": "turn_456",
+        "item": {
+          "type": "agentMessage",
+          "id": "item_789",
+          "text": "Here's the complete response..."
+        }
+      }
+    }
+    ```
+  </Step>
+</Steps>
+
+## Item Types
+
+### userMessage
+
+User text or image input.
+
+<ParamField path="id" type="string" required>
+  Item identifier
+</ParamField>
+
+<ParamField path="content" type="UserInput[]" required>
+  Array of user input items (text, image, localImage, skill, mention)
+</ParamField>
+
+**Example:**
+```json
+{
+  "type": "userMessage",
+  "id": "turn_456",
+  "content": [
+    { "type": "text", "text": "Run tests" }
+  ]
+}
+```
+
+### agentMessage
+
+Agent response text.
+
+<ParamField path="id" type="string" required>
+  Item identifier
+</ParamField>
+
+<ParamField path="text" type="string" required>
+  Accumulated agent reply text
+</ParamField>
+
+<ParamField path="phase" type="MessagePhase">
+  Message phase (when applicable)
+</ParamField>
+
+**Streaming:**
+
+```json
+{
+  "method": "item/agentMessage/delta",
+  "params": {
+    "threadId": "thr_123",
+    "turnId": "turn_456",
+    "itemId": "item_789",
+    "delta": "Here is "
+  }
+}
+```
+
+Concatenate `delta` values for the same `itemId` to reconstruct the full reply.
+
+### plan
+
+**EXPERIMENTAL** - Proposed plan item content.
+
+<ParamField path="id" type="string" required>
+  Item identifier
+</ParamField>
+
+<ParamField path="text" type="string" required>
+  Plan text
+</ParamField>
+
+**Streaming:**
+
+```json
+{
+  "method": "item/plan/delta",
+  "params": {
+    "threadId": "thr_123",
+    "turnId": "turn_456",
+    "itemId": "item_plan",
+    "delta": "Step 1: Run tests\n"
+  }
+}
+```
+
+<Note>
+The completed plan item is authoritative and may not match the concatenation of `PlanDelta` text.
+</Note>
+
+### reasoning
+
+Agent reasoning traces.
+
+<ParamField path="id" type="string" required>
+  Item identifier
+</ParamField>
+
+<ParamField path="summary" type="string[]" required>
+  Streamed reasoning summaries (applicable for most OpenAI models)
+</ParamField>
+
+<ParamField path="content" type="string[]" required>
+  Raw reasoning blocks (applicable for open source models)
+</ParamField>
+
+**Streaming notifications:**
+
+<CodeGroup>
+```json Summary Delta
+{
+  "method": "item/reasoning/summaryTextDelta",
+  "params": {
+    "threadId": "thr_123",
+    "turnId": "turn_456",
+    "itemId": "item_reasoning",
+    "summaryIndex": 0,
+    "delta": "Analyzing the test suite..."
+  }
+}
+```
+
+```json Summary Part Added
+{
+  "method": "item/reasoning/summaryPartAdded",
+  "params": {
+    "threadId": "thr_123",
+    "turnId": "turn_456",
+    "itemId": "item_reasoning",
+    "summaryIndex": 1
+  }
+}
+```
+
+```json Text Delta (raw)
+{
+  "method": "item/reasoning/textDelta",
+  "params": {
+    "threadId": "thr_123",
+    "turnId": "turn_456",
+    "itemId": "item_reasoning",
+    "contentIndex": 0,
+    "delta": "Let me think through this..."
+  }
+}
+```
+</CodeGroup>
+
+### commandExecution
+
+Sandboxed shell command.
+
+<ParamField path="id" type="string" required>
+  Item identifier
+</ParamField>
+
+<ParamField path="command" type="string" required>
+  The command to execute
+</ParamField>
+
+<ParamField path="cwd" type="string" required>
+  Command working directory
+</ParamField>
+
+<ParamField path="processId" type="string">
+  PTY process identifier (when available)
+</ParamField>
+
+<ParamField path="status" type="CommandExecutionStatus" required>
+  `inProgress`, `completed`, `failed`, or `declined`
+</ParamField>
+
+<ParamField path="commandActions" type="CommandAction[]" required>
+  Best-effort parsing of command actions
+</ParamField>
+
+<ParamField path="aggregatedOutput" type="string">
+  Combined stdout/stderr output
+</ParamField>
+
+<ParamField path="exitCode" type="number">
+  Command exit code
+</ParamField>
+
+<ParamField path="durationMs" type="number">
+  Execution duration in milliseconds
+</ParamField>
+
+**Streaming:**
+
+```json
+{
+  "method": "item/commandExecution/outputDelta",
+  "params": {
+    "threadId": "thr_123",
+    "turnId": "turn_456",
+    "itemId": "item_cmd",
+    "delta": "Running tests...\n"
+  }
+}
+```
+
+### fileChange
+
+Proposed or applied file edits.
+
+<ParamField path="id" type="string" required>
+  Item identifier
+</ParamField>
+
+<ParamField path="changes" type="FileUpdateChange[]" required>
+  Array of file changes with path, kind, and diff
+</ParamField>
+
+<ParamField path="status" type="PatchApplyStatus" required>
+  `inProgress`, `completed`, `failed`, or `declined`
+</ParamField>
+
+**Streaming:**
+
+```json
+{
+  "method": "item/fileChange/outputDelta",
+  "params": {
+    "threadId": "thr_123",
+    "turnId": "turn_456",
+    "itemId": "item_file",
+    "delta": "Applying patch to src/main.rs...\n"
+  }
+}
+```
+
+### mcpToolCall
+
+MCP (Model Context Protocol) tool invocation.
+
+<ParamField path="id" type="string" required>
+  Item identifier
+</ParamField>
+
+<ParamField path="server" type="string" required>
+  MCP server name
+</ParamField>
+
+<ParamField path="tool" type="string" required>
+  Tool name
+</ParamField>
+
+<ParamField path="status" type="string" required>
+  `inProgress`, `completed`, or `failed`
+</ParamField>
+
+<ParamField path="arguments" type="object" required>
+  Tool arguments (JSON)
+</ParamField>
+
+<ParamField path="result" type="object">
+  Tool result (when completed)
+</ParamField>
+
+<ParamField path="error" type="object">
+  Error details (when failed)
+</ParamField>
+
+<ParamField path="durationMs" type="number">
+  Call duration in milliseconds
+</ParamField>
+
+**Example:**
+```json
+{
+  "type": "mcpToolCall",
+  "id": "item_mcp",
+  "server": "github",
+  "tool": "create_issue",
+  "status": "completed",
+  "arguments": {
+    "title": "Bug report",
+    "body": "Description"
+  },
+  "result": {
+    "issue_url": "https://github.com/..."
+  },
+  "durationMs": 1234
+}
+```
+
+### dynamicToolCall
+
+Dynamic tool call executed on the client.
+
+<ParamField path="id" type="string" required>
+  Item identifier
+</ParamField>
+
+<ParamField path="tool" type="string" required>
+  Tool name
+</ParamField>
+
+<ParamField path="arguments" type="object" required>
+  Tool arguments (JSON)
+</ParamField>
+
+<ParamField path="status" type="string" required>
+  `inProgress`, `completed`, or `failed`
+</ParamField>
+
+<ParamField path="contentItems" type="object[]">
+  Output content items (text/images)
+</ParamField>
+
+<ParamField path="success" type="boolean">
+  Whether the tool call succeeded
+</ParamField>
+
+<ParamField path="durationMs" type="number">
+  Call duration in milliseconds
+</ParamField>
+
+### webSearch
+
+Web search request issued by the agent.
+
+<ParamField path="id" type="string" required>
+  Item identifier
+</ParamField>
+
+<ParamField path="query" type="string" required>
+  Search query
+</ParamField>
+
+<ParamField path="action" type="WebSearchAction">
+  Action payload (search, open_page, find_in_page)
+</ParamField>
+
+**Example:**
+```json
+{
+  "type": "webSearch",
+  "id": "item_search",
+  "query": "rust async trait error handling",
+  "action": {
+    "type": "search",
+    "query": "rust async trait error handling"
+  }
+}
+```
+
+### imageView
+
+Image viewer tool invocation.
+
+<ParamField path="id" type="string" required>
+  Item identifier
+</ParamField>
+
+<ParamField path="path" type="string" required>
+  Path to the image file
+</ParamField>
+
+**Example:**
+```json
+{
+  "type": "imageView",
+  "id": "item_img",
+  "path": "/tmp/screenshot.png"
+}
+```
+
+### enteredReviewMode
+
+Emitted when the reviewer starts.
+
+<ParamField path="id" type="string" required>
+  Item identifier
+</ParamField>
+
+<ParamField path="review" type="string" required>
+  Short user-facing label (e.g., `"current changes"`, `"commit abc123"`)
+</ParamField>
+
+### exitedReviewMode
+
+Emitted when the reviewer finishes.
+
+<ParamField path="id" type="string" required>
+  Item identifier
+</ParamField>
+
+<ParamField path="review" type="string" required>
+  Full plain-text review (overall notes plus bullet point findings)
+</ParamField>
+
+**Example:**
+```json
+{
+  "type": "exitedReviewMode",
+  "id": "turn_900",
+  "review": "Looks solid overall...\n\n- Prefer Stylize helpers — app.rs:10-20\n  ..."
+}
+```
+
+### contextCompaction
+
+Emitted when Codex compacts conversation history.
+
+<ParamField path="id" type="string" required>
+  Item identifier
+</ParamField>
+
+**Example:**
+```json
+{
+  "type": "contextCompaction",
+  "id": "item_compact"
+}
+```
+
+<Note>
+Context compaction can happen automatically when the conversation history grows too large.
+</Note>
+
+## Item Notifications Summary
+
+<ResponseField name="item/started" type="notification">
+  Emits the full `item` when work begins
+</ResponseField>
+
+<ResponseField name="item/completed" type="notification">
+  Sends the final `item` once work finishes
+</ResponseField>
+
+<ResponseField name="item/agentMessage/delta" type="notification">
+  Streams agent message text
+</ResponseField>
+
+<ResponseField name="item/plan/delta" type="notification">
+  Streams plan content (experimental)
+</ResponseField>
+
+<ResponseField name="item/reasoning/summaryTextDelta" type="notification">
+  Streams reasoning summary text
+</ResponseField>
+
+<ResponseField name="item/reasoning/summaryPartAdded" type="notification">
+  Marks reasoning summary section boundaries
+</ResponseField>
+
+<ResponseField name="item/reasoning/textDelta" type="notification">
+  Streams raw reasoning text (open source models)
+</ResponseField>
+
+<ResponseField name="item/commandExecution/outputDelta" type="notification">
+  Streams command stdout/stderr
+</ResponseField>
+
+<ResponseField name="item/fileChange/outputDelta" type="notification">
+  Streams file change tool output
+</ResponseField>
+
+<ResponseField name="item/mcpToolCall/progress" type="notification">
+  MCP tool call progress updates
+</ResponseField>
+
+## Approvals
+
+Certain actions (shell commands or file changes) may require explicit user approval depending on the approval policy.
+
+### Command Execution Approval
+
+Order of messages:
+
+<Steps>
+  <Step title="item/started">
+    Shows pending `commandExecution` item
+  </Step>
+  
+  <Step title="item/commandExecution/requestApproval (server request)">
+    ```json
+    {
+      "method": "item/commandExecution/requestApproval",
+      "id": 100,
+      "params": {
+        "threadId": "thr_123",
+        "turnId": "turn_456",
+        "itemId": "item_cmd",
+        "command": ["rm", "-rf", "/tmp/test"],
+        "cwd": "/Users/me/project",
+        "commandActions": [...],
+        "reason": "Potentially destructive command"
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Client response">
+    ```json
+    {
+      "id": 100,
+      "result": {
+        "decision": "accept"
+      }
+    }
+    ```
+    
+    Possible decisions:
+    - `accept` - Approve the command
+    - `acceptForSession` - Approve and cache for session
+    - `acceptWithExecpolicyAmendment` - Approve with persistent rule
+    - `applyNetworkPolicyAmendment` - Apply network policy rule
+    - `decline` - Deny the command
+    - `cancel` - Deny and interrupt turn
+  </Step>
+  
+  <Step title="serverRequest/resolved">
+    Confirms the request was resolved
+  </Step>
+  
+  <Step title="item/completed">
+    Final item with execution result
+  </Step>
+</Steps>
+
+### File Change Approval
+
+Order of messages:
+
+<Steps>
+  <Step title="item/started">
+    Emits `fileChange` item with diff summaries
+  </Step>
+  
+  <Step title="item/fileChange/requestApproval (server request)">
+    ```json
+    {
+      "method": "item/fileChange/requestApproval",
+      "id": 101,
+      "params": {
+        "threadId": "thr_123",
+        "turnId": "turn_456",
+        "itemId": "item_file",
+        "reason": "File changes require approval"
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Client response">
+    ```json
+    {
+      "id": 101,
+      "result": {
+        "decision": "accept"
+      }
+    }
+    ```
+    
+    Possible decisions:
+    - `accept` - Approve the changes
+    - `decline` - Deny the changes
+  </Step>
+  
+  <Step title="serverRequest/resolved">
+    Confirms the request was resolved
+  </Step>
+  
+  <Step title="item/completed">
+    Final item with `status: "completed"`, `"failed"`, or `"declined"`
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Models" icon="brain" href="/api/models">
+    List available models and capabilities
+  </Card>
+  <Card title="Skills" icon="wand-magic-sparkles" href="/api/skills">
+    Manage and invoke skills
+  </Card>
+</CardGroup>

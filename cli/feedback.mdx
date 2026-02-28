@@ -1,0 +1,210 @@
+---
+title: Feedback
+description: Submit feedback and report issues with Codex
+---
+
+## Submitting Feedback
+
+We welcome your feedback to help improve Codex! There are several ways to share your thoughts, report bugs, or request features.
+
+## How to Provide Feedback
+
+### GitHub Issues (Recommended)
+
+Report issues or request features on our GitHub repository:
+
+**Repository:** [https://github.com/openai/codex](https://github.com/openai/codex)
+
+```bash
+# Quick link to create an issue
+open https://github.com/openai/codex/issues/new
+```
+
+### In-App Feedback
+
+While using Codex interactively, press `Ctrl+P` and select "Give Feedback" to:
+
+- Report bugs
+- Request features
+- Share suggestions
+- Report security issues
+
+## What to Include
+
+When submitting feedback, please include:
+
+### For Bug Reports
+
+1. **Codex Version:**
+   ```bash
+   codex --version
+   ```
+
+2. **Operating System:**
+   - macOS version
+   - Linux distribution and version
+   - Windows version (if using WSL)
+
+3. **Steps to Reproduce:**
+   - Exact commands run
+   - Expected behavior
+   - Actual behavior
+
+4. **Error Messages:**
+   - Full error output
+   - Relevant logs from stderr
+
+5. **Configuration:**
+   - Relevant sections from `~/.codex/config.toml`
+   - Any `-c` overrides used
+
+### For Feature Requests
+
+1. **Use Case:** Describe what you're trying to accomplish
+2. **Current Workaround:** How you're handling it now (if applicable)
+3. **Proposed Solution:** Your idea for how it should work
+4. **Examples:** Show how it would be used
+
+## Example Bug Report
+
+```markdown
+# codex exec fails with "Invalid API key" despite valid key
+
+## Environment
+- Codex version: 0.5.0
+- OS: Ubuntu 22.04
+- Shell: bash 5.1.16
+
+## Steps to Reproduce
+1. Run: `echo "$OPENAI_API_KEY" | codex login --with-api-key`
+2. Verify: `codex login status` (shows authenticated)
+3. Run: `codex exec "explain main.rs"`
+4. Error: "Invalid API key"
+
+## Expected Behavior
+Should execute the prompt using the stored API key
+
+## Actual Behavior
+Fails with "Invalid API key" error
+
+## Logs
+```
+[stderr output here]
+```
+
+## Config
+```toml
+[relevant config.toml sections]
+```
+```
+
+## Example Feature Request
+
+```markdown
+# Add support for output templates in codex exec
+
+## Use Case
+I frequently run `codex exec` in CI to generate reports. I want the output
+to follow a consistent template format (e.g., markdown, HTML, JSON).
+
+## Current Workaround
+I provide template instructions in every prompt:
+```bash
+codex exec "analyze code quality. Format as markdown with sections:
+## Summary
+## Issues Found
+## Recommendations"
+```
+
+This is repetitive and error-prone.
+
+## Proposed Solution
+Add a `--template` flag:
+```bash
+codex exec --template quality-report.md "analyze code quality"
+```
+
+Where `quality-report.md` contains:
+```markdown
+# Code Quality Report
+
+## Summary
+{{summary}}
+
+## Issues Found
+{{issues}}
+
+## Recommendations
+{{recommendations}}
+```
+
+## Examples
+```bash
+codex exec --template report.md "analyze security"
+codex exec --template api-docs.json "document API endpoints"
+```
+```
+
+## Community Guidelines
+
+When providing feedback:
+
+- **Be Kind**: Treat others with respect
+- **Be Constructive**: Focus on solutions, not just problems
+- **Be Specific**: Provide clear, actionable details
+- **Search First**: Check if someone already reported the issue
+
+## Security Issues
+
+For security vulnerabilities, **do not open a public issue**. Instead:
+
+**Email:** security@openai.com
+
+Include:
+- Description of the vulnerability
+- Steps to reproduce
+- Potential impact
+- Your contact information
+
+## Response Times
+
+We review all feedback, but response times vary:
+
+- **Critical bugs**: Within 1-2 business days
+- **General bugs**: Within 1 week
+- **Feature requests**: Reviewed during planning cycles
+
+## Feature Voting
+
+On GitHub, you can:
+
+- 👍 Upvote issues you care about
+- 💬 Comment with your use case
+- 👀 Subscribe to updates
+
+Highly-voted issues get prioritized in our roadmap.
+
+## Contributing
+
+Interested in contributing code? See our [Contributing Guide](https://github.com/openai/codex/blob/main/CONTRIBUTING.md).
+
+Areas where we especially welcome contributions:
+
+- Bug fixes
+- Documentation improvements
+- Example prompts and workflows
+- Editor integrations
+- MCP server implementations
+
+## Stay Updated
+
+- **GitHub Releases**: [Watch for new releases](https://github.com/openai/codex/releases)
+- **Changelog**: Read about new features and fixes
+- **Discussions**: Join community conversations
+
+## Related Resources
+
+- [GitHub Repository](https://github.com/openai/codex)
+- [Contributing Guide](https://github.com/openai/codex/blob/main/CONTRIBUTING.md)
+- [Documentation](https://developers.openai.com/codex)
+- [Community Forum](https://community.openai.com)

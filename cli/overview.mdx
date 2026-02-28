@@ -1,0 +1,105 @@
+---
+title: CLI Overview
+description: Complete reference for all Codex CLI commands
+---
+
+Codex CLI provides a powerful command-line interface for interacting with the Codex coding agent. You can run Codex interactively, execute tasks non-interactively, manage authentication, configure MCP servers, and more.
+
+## Interactive vs Non-Interactive
+
+**Interactive Mode** (default):
+```bash
+codex
+codex "create a todo app"
+```
+
+**Non-Interactive Mode** (exec command):
+```bash
+codex exec "explain this codebase"
+codex exec --json "run tests"
+```
+
+## Available Commands
+
+<CardGroup cols={3}>
+  <Card title="codex" icon="terminal" href="/cli/codex">
+    Run Codex interactively or with a prompt
+  </Card>
+  
+  <Card title="exec" icon="play" href="/cli/exec">
+    Run Codex non-interactively for automation
+  </Card>
+  
+  <Card title="review" icon="code-review" href="/cli/review">
+    Run code reviews on commits or branches
+  </Card>
+  
+  <Card title="login" icon="sign-in" href="/cli/login">
+    Authenticate with ChatGPT or API key
+  </Card>
+  
+  <Card title="logout" icon="sign-out" href="/cli/logout">
+    Remove stored credentials
+  </Card>
+  
+  <Card title="mcp" icon="server" href="/cli/mcp">
+    Manage external MCP servers
+  </Card>
+  
+  <Card title="app-server" icon="network" href="/cli/app-server">
+    Start Codex as an app server
+  </Card>
+  
+  <Card title="feedback" icon="message" href="/cli/feedback">
+    Submit feedback about Codex
+  </Card>
+</CardGroup>
+
+## Global Flags
+
+These flags work with most commands:
+
+- `-c, --config <KEY=VALUE>` - Override config.toml settings
+- `-p, --profile <NAME>` - Use a specific config profile
+- `-m, --model <MODEL>` - Specify the AI model to use
+- `--oss` - Use open-source/local model providers
+- `--enable <FEATURE>` - Enable a feature flag
+- `--disable <FEATURE>` - Disable a feature flag
+
+## Common Usage Patterns
+
+### Quick One-Off Tasks
+```bash
+codex exec "add error handling to utils.ts"
+codex exec --json "list all API endpoints" > endpoints.json
+```
+
+### Code Reviews
+```bash
+codex review --uncommitted
+codex review --base main
+codex review --commit abc123
+```
+
+### Using Different Models
+```bash
+codex -m gpt-4.1 "complex refactoring task"
+codex --oss --local-provider ollama "local task"
+```
+
+### Configuration Overrides
+```bash
+codex -c sandbox_mode=workspace_write "build a CLI tool"
+codex -p production exec "deploy to staging"
+```
+
+## Exit Codes
+
+Codex CLI uses standard exit codes:
+
+- `0` - Success
+- `1` - Error occurred during execution
+
+## Next Steps
+
+Explore individual command documentation for detailed usage, flags, and examples.

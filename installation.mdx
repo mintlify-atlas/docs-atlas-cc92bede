@@ -1,0 +1,209 @@
+---
+title: Installation
+description: Install Codex CLI on macOS, Linux, or Windows (via WSL2)
+---
+
+# Installation
+
+Codex CLI can be installed using npm, Homebrew, or by downloading pre-built binaries for your platform.
+
+## System requirements
+
+Before installing Codex CLI, ensure your system meets these requirements:
+
+| Requirement | Details |
+| --- | --- |
+| **Operating systems** | macOS 12+, Ubuntu 20.04+/Debian 10+, or Windows 11 via WSL2 |
+| **Node.js** | 16 or newer (Node 20 LTS recommended for npm installation) |
+| **Git** (recommended) | 2.23+ for built-in PR helpers |
+| **RAM** | 4 GB minimum (8 GB recommended) |
+
+<Warning>
+Codex CLI does not work directly on Windows. You must use Windows Subsystem for Linux (WSL2). See the [WSL installation guide](https://learn.microsoft.com/en-us/windows/wsl/install).
+</Warning>
+
+## Installation methods
+
+<Tabs>
+  <Tab title="npm">
+    <Steps>
+      <Step title="Install globally with npm">
+        Install Codex CLI globally using your preferred package manager:
+
+        <CodeGroup>
+        ```bash npm
+        npm install -g @openai/codex
+        ```
+
+        ```bash yarn
+        yarn global add @openai/codex
+        ```
+
+        ```bash pnpm
+        pnpm add -g @openai/codex
+        ```
+
+        ```bash bun
+        bun install -g @openai/codex
+        ```
+        </CodeGroup>
+
+        <Note>
+        Never run `sudo npm install -g`. If you encounter permissions errors, fix your npm permissions instead.
+        </Note>
+      </Step>
+
+      <Step title="Verify installation">
+        Verify that Codex is installed correctly:
+
+        ```bash
+        codex --version
+        ```
+
+        You should see the version number printed to your terminal.
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="Homebrew">
+    <Steps>
+      <Step title="Install with Homebrew">
+        Install Codex CLI using Homebrew (macOS and Linux):
+
+        ```bash
+        brew install --cask codex
+        ```
+      </Step>
+
+      <Step title="Verify installation">
+        Verify that Codex is installed correctly:
+
+        ```bash
+        codex --version
+        ```
+
+        You should see the version number printed to your terminal.
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="Binary download">
+    <Steps>
+      <Step title="Download the binary">
+        Go to the [latest GitHub Release](https://github.com/openai/codex/releases/latest) and download the appropriate binary for your platform:
+
+        **macOS**
+        - Apple Silicon/arm64: `codex-aarch64-apple-darwin.tar.gz`
+        - x86_64 (older Mac hardware): `codex-x86_64-apple-darwin.tar.gz`
+
+        **Linux**
+        - x86_64: `codex-x86_64-unknown-linux-musl.tar.gz`
+        - arm64: `codex-aarch64-unknown-linux-musl.tar.gz`
+      </Step>
+
+      <Step title="Extract and rename">
+        Extract the archive and rename the binary:
+
+        ```bash
+        # Example for Linux x86_64
+        tar -xzf codex-x86_64-unknown-linux-musl.tar.gz
+        mv codex-x86_64-unknown-linux-musl codex
+        ```
+
+        Each archive contains a single entry with the platform name baked in, so you'll want to rename it to `codex`.
+      </Step>
+
+      <Step title="Make executable and move to PATH">
+        Make the binary executable and move it to a directory in your PATH:
+
+        ```bash
+        chmod +x codex
+        sudo mv codex /usr/local/bin/
+        ```
+      </Step>
+
+      <Step title="Verify installation">
+        Verify that Codex is installed correctly:
+
+        ```bash
+        codex --version
+        ```
+
+        You should see the version number printed to your terminal.
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="Build from source">
+    <Steps>
+      <Step title="Clone the repository">
+        Clone the Codex repository and navigate to the CLI package:
+
+        ```bash
+        git clone https://github.com/openai/codex.git
+        cd codex/codex-cli
+        ```
+      </Step>
+
+      <Step title="Enable corepack and install dependencies">
+        Enable corepack and install dependencies:
+
+        ```bash
+        corepack enable
+        pnpm install
+        ```
+      </Step>
+
+      <Step title="Build the CLI">
+        Build the CLI:
+
+        ```bash
+        pnpm build
+        ```
+
+        **Linux only:** Download prebuilt sandboxing binaries:
+
+        ```bash
+        ./scripts/install_native_deps.sh
+        ```
+
+        This requires `gh` (GitHub CLI) and `zstd`.
+      </Step>
+
+      <Step title="Link globally (optional)">
+        Link the command globally for convenience:
+
+        ```bash
+        pnpm link
+        ```
+
+        Or run directly:
+
+        ```bash
+        node ./dist/cli.js
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## Verify your installation
+
+After installation, verify that Codex is working by running:
+
+```bash
+codex --help
+```
+
+You should see the help output with available commands and options.
+
+## Next steps
+
+<Steps>
+  <Step title="Authenticate">
+    Now that Codex is installed, [set up authentication](/authentication) to start using the CLI.
+  </Step>
+  <Step title="Complete the quickstart">
+    Follow the [quickstart guide](/quickstart) to run your first commands.
+  </Step>
+</Steps>

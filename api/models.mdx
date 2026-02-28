@@ -1,0 +1,306 @@
+---
+title: 'Models'
+description: 'List and configure available models'
+---
+
+The `model/list` API returns available models with their capabilities, reasoning effort options, and upgrade paths.
+
+## List Models
+
+Fetch available models with optional pagination and filtering.
+
+### Method
+
+```
+model/list
+```
+
+### Parameters
+
+<ParamField path="cursor" type="string">
+  Opaque pagination cursor from previous response
+</ParamField>
+
+<ParamField path="limit" type="number">
+  Page size (server defaults if unset)
+</ParamField>
+
+<ParamField path="includeHidden" type="boolean" default={false}>
+  When true, include models with `hidden: true`
+</ParamField>
+
+### Response
+
+<ResponseField name="data" type="Model[]">
+  Array of model objects
+</ResponseField>
+
+<ResponseField name="nextCursor" type="string | null">
+  Cursor for next page (null if no more pages)
+</ResponseField>
+
+## Model Object
+
+<ResponseField name="id" type="string">
+  Unique model identifier
+</ResponseField>
+
+<ResponseField name="model" type="string">
+  Model name (e.g., `gpt-5.1-codex`)
+</ResponseField>
+
+<ResponseField name="displayName" type="string">
+  Human-readable model name
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Model description
+</ResponseField>
+
+<ResponseField name="hidden" type="boolean">
+  Whether the model is hidden from default picker
+</ResponseField>
+
+<ResponseField name="isDefault" type="boolean">
+  Whether this is the default model (only one model should be marked default)
+</ResponseField>
+
+<ResponseField name="supportsPersonality" type="boolean">
+  Whether the model supports personality customization
+</ResponseField>
+
+<ResponseField name="inputModalities" type="InputModality[]">
+  Supported input modalities (e.g., `["text", "image"]`)
+</ResponseField>
+
+<ResponseField name="supportedReasoningEfforts" type="ReasoningEffortOption[]">
+  Available reasoning effort levels
+  
+  <Expandable title="ReasoningEffortOption">
+    <ResponseField name="effort" type="string">
+      Effort level: `low`, `medium`, or `high`
+    </ResponseField>
+    
+    <ResponseField name="displayName" type="string">
+      Human-readable effort name
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Effort description
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="defaultReasoningEffort" type="string">
+  Default reasoning effort for this model (`low`, `medium`, `high`)
+</ResponseField>
+
+<ResponseField name="upgrade" type="string | null">
+  Legacy upgrade model ID (deprecated)
+</ResponseField>
+
+<ResponseField name="upgradeInfo" type="ModelUpgradeInfo | null">
+  Model upgrade information
+  
+  <Expandable title="ModelUpgradeInfo">
+    <ResponseField name="model" type="string">
+      Recommended upgrade model
+    </ResponseField>
+    
+    <ResponseField name="upgradeCopy" type="string">
+      Upgrade message text
+    </ResponseField>
+    
+    <ResponseField name="modelLink" type="string">
+      URL to model information
+    </ResponseField>
+    
+    <ResponseField name="migrationMarkdown" type="string">
+      Markdown migration guide
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="availabilityNux" type="ModelAvailabilityNux | null">
+  Model availability message
+  
+  <Expandable title="ModelAvailabilityNux">
+    <ResponseField name="message" type="string">
+      Availability message (e.g., "Upgrade to Pro for access")
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example
+
+<CodeGroup>
+```json Request
+{
+  "method": "model/list",
+  "id": 6,
+  "params": {
+    "cursor": null,
+    "limit": 25,
+    "includeHidden": false
+  }
+}
+```
+
+```json Response
+{
+  "id": 6,
+  "result": {
+    "data": [
+      {
+        "id": "gpt-5.1-codex",
+        "model": "gpt-5.1-codex",
+        "displayName": "GPT-5.1 Codex",
+        "description": "Latest Codex model with advanced reasoning",
+        "hidden": false,
+        "isDefault": true,
+        "supportsPersonality": true,
+        "inputModalities": ["text", "image"],
+        "supportedReasoningEfforts": [
+          {
+            "effort": "low",
+            "displayName": "Low",
+            "description": "Fast responses"
+          },
+          {
+            "effort": "medium",
+            "displayName": "Medium",
+            "description": "Balanced performance"
+          },
+          {
+            "effort": "high",
+            "displayName": "High",
+            "description": "Deep reasoning"
+          }
+        ],
+        "defaultReasoningEffort": "medium",
+        "upgrade": null,
+        "upgradeInfo": null,
+        "availabilityNux": null
+      },
+      {
+        "id": "gpt-5-codex",
+        "model": "gpt-5-codex",
+        "displayName": "GPT-5 Codex",
+        "description": "Previous generation Codex model",
+        "hidden": false,
+        "isDefault": false,
+        "supportsPersonality": true,
+        "inputModalities": ["text"],
+        "supportedReasoningEfforts": [
+          {
+            "effort": "medium",
+            "displayName": "Medium",
+            "description": "Standard reasoning"
+          }
+        ],
+        "defaultReasoningEffort": "medium",
+        "upgrade": "gpt-5.1-codex",
+        "upgradeInfo": {
+          "model": "gpt-5.1-codex",
+          "upgradeCopy": "Upgrade to GPT-5.1 Codex for improved performance",
+          "modelLink": "https://openai.com/models/gpt-5-1-codex",
+          "migrationMarkdown": "## Migration Guide\n\nGPT-5.1 offers..."
+        },
+        "availabilityNux": null
+      }
+    ],
+    "nextCursor": null
+  }
+}
+```
+</CodeGroup>
+
+## Reasoning Effort
+
+Models support different reasoning effort levels that affect response quality and latency.
+
+<CardGroup cols={3}>
+  <Card title="Low" icon="gauge-low">
+    Fast responses with minimal reasoning
+    
+    Best for: Quick edits, simple queries
+  </Card>
+  
+  <Card title="Medium" icon="gauge">
+    Balanced performance and quality
+    
+    Best for: General development tasks
+  </Card>
+  
+  <Card title="High" icon="gauge-high">
+    Deep reasoning for complex problems
+    
+    Best for: Architecture, debugging, optimization
+  </Card>
+</CardGroup>
+
+### Setting Reasoning Effort
+
+You can set the reasoning effort at the thread or turn level:
+
+<CodeGroup>
+```json Thread-level (thread/start)
+{
+  "method": "thread/start",
+  "id": 10,
+  "params": {
+    "model": "gpt-5.1-codex",
+    "effort": "high"
+  }
+}
+```
+
+```json Turn-level (turn/start)
+{
+  "method": "turn/start",
+  "id": 30,
+  "params": {
+    "threadId": "thr_123",
+    "input": [{"type": "text", "text": "Optimize this algorithm"}],
+    "effort": "high"
+  }
+}
+```
+</CodeGroup>
+
+## Input Modalities
+
+Models may support different input modalities:
+
+<ResponseField name="text" type="modality">
+  Text input (all models)
+</ResponseField>
+
+<ResponseField name="image" type="modality">
+  Image input (vision-capable models)
+</ResponseField>
+
+<ResponseField name="audio" type="modality">
+  Audio input (audio-capable models)
+</ResponseField>
+
+## Model Selection
+
+When selecting a model, consider:
+
+1. **Task complexity**: Use higher reasoning effort for complex problems
+2. **Input type**: Ensure the model supports your input modality (text, images)
+3. **Personality**: Check `supportsPersonality` if you want to customize the agent's tone
+4. **Availability**: Check `availabilityNux` for plan requirements
+5. **Default**: Start with `isDefault: true` model if unsure
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Skills" icon="wand-magic-sparkles" href="/api/skills">
+    List and manage skills
+  </Card>
+  <Card title="Apps" icon="plug" href="/api/apps">
+    Discover and use apps
+  </Card>
+</CardGroup>
